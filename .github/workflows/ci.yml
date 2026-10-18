@@ -22,10 +22,15 @@ jobs:
           packages: platform-tools
           log-accepted-android-sdk-licenses: false
       - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
       - run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
       - run: python3 scripts/prepare_upstream.py
       - run: python3 -m unittest discover -s scripts -p 'test_*.py'
       - run: bash gradlew testDebugUnitTest lintDebug assembleDebug
+      - run: python3 -m pip install --disable-pip-version-check PyYAML==6.0.2
+      - run: python3 scripts/validate_customization.py
       - uses: actions/upload-artifact@v4
         with:
           name: pi-imager-debug

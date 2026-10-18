@@ -24,6 +24,7 @@ import de.jtracht.piimager.data.ImagingService
 import de.jtracht.piimager.data.Storage
 import de.jtracht.piimager.presentation.ImagerViewModel
 import de.jtracht.piimager.presentation.ScreenState
+import de.jtracht.piimager.domain.InitFormat
 
 private val Raspberry = Color(0xFFC51A4A)
 private val LightColors = lightColorScheme(primary = Raspberry, secondary = Color(0xFF42684A), background = Color(0xFFF5F3EF), surface = Color(0xFFFFFBF7))
@@ -54,10 +55,10 @@ fun ImagerScreen(model: ImagerViewModel, pickImage: () -> Unit, selectTarget: (S
                 }
                 item {
                     if (wide) Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                        Box(Modifier.weight(1f)) { ImageCard(state, locked, model::openCatalog, pickImage, model::prepare, model::cancelPreparation) }
+                        Box(Modifier.weight(1f)) { ImageCard(state, locked, model::openCatalog, pickImage, model::prepare, model::cancelPreparation, model::openConfiguration, model::forgetImage) }
                         Box(Modifier.weight(1f)) { StorageCard(state, locked, model::refresh, selectTarget) }
                     } else Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                        ImageCard(state, locked, model::openCatalog, pickImage, model::prepare, model::cancelPreparation)
+                        ImageCard(state, locked, model::openCatalog, pickImage, model::prepare, model::cancelPreparation, model::openConfiguration, model::forgetImage)
                         StorageCard(state, locked, model::refresh, selectTarget)
                     }
                 }
@@ -82,12 +83,15 @@ fun ImagerScreen(model: ImagerViewModel, pickImage: () -> Unit, selectTarget: (S
         }
     }
     if (state.catalogOpen) Catalog(model, state)
+    if (state.configurationOpen) CustomizationDialog(state.draft, state.draftFormat, state.draftSection, state.uri != null,
+        change = model::editConfiguration, changeSection = model::configurationSection,
+        dismiss = model::closeConfiguration, save = model::configure)
     if (confirm) {
         val target = state.target
         val image = state.prepared
         if (target != null && image != null) AlertDialog(onDismissRequest = { confirm = false },
             title = { Text(stringResource(R.string.erase_title)) },
-            text = { Text(stringResource(R.string.erase_body, "${target.name} [${target.id}]", size(target.capacity), image.name)) },
+            text = { Text(stringResource(R.string.erase_body, "${target.name} [${target.id}, LUN ${target.lun}]", size(target.capacity), image.name)) },
             confirmButton = { TextButton(onClick = { confirm = false; startWrite(target, image.sha256) }, enabled = !locked) { Text(stringResource(R.string.erase_confirm)) } },
             dismissButton = { TextButton(onClick = { confirm = false }) { Text(stringResource(R.string.cancel)) } })
     }
@@ -105,13 +109,17 @@ fun ImagerScreen(model: ImagerViewModel, pickImage: () -> Unit, selectTarget: (S
     }
 }
 
-@Composable private fun ImageCard(state: ScreenState, locked: Boolean, catalog: () -> Unit, pick: () -> Unit, prepare: () -> Unit, cancel: () -> Unit) {
+@Composable private fun ImageCard(state: ScreenState, locked: Boolean, catalog: () -> Unit, pick: () -> Unit, prepare: () -> Unit, cancel: () -> Unit, configure: () -> Unit, clear: () -> Unit) {
     StepCard(stringResource(R.string.image_step)) {
         state.entry?.let { Text(it.name, style = MaterialTheme.typography.titleMedium); Text(it.description) }
         if (state.uri != null) Text(stringResource(R.string.local_selected))
         OutlinedButton(onClick = catalog, enabled = !locked, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.catalog)) }
         OutlinedButton(onClick = pick, enabled = !locked, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.local_image)) }
         Text(stringResource(R.string.image_formats), style = MaterialTheme.typography.bodySmall)
+        OutlinedButton(onClick = configure, enabled = !locked && (state.entry != null || state.uri != null), modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.custom_button))
+        }
+        if (state.customization.enabled) Text(stringResource(R.string.custom_summary, state.customization.hostname, state.customization.username), style = MaterialTheme.typography.bodySmall)
         if (state.preparing) {
             LinearProgressIndicator(Modifier.fillMaxWidth())
             Text("${stringResource(R.string.preparing)} ${size(state.bytes)}")
@@ -121,6 +129,7 @@ fun ImagerScreen(model: ImagerViewModel, pickImage: () -> Unit, selectTarget: (S
         } else Button(onClick = prepare, enabled = !locked && (state.entry != null || state.uri != null), modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.prepare))
         }
+        TextButton(onClick = clear, enabled = !locked) { Text(stringResource(R.string.clear_image)) }
     }
 }
 
@@ -131,14 +140,15 @@ fun ImagerScreen(model: ImagerViewModel, pickImage: () -> Unit, selectTarget: (S
         state.devices.forEach { device ->
             OutlinedButton(onClick = { select(device) }, enabled = !locked, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.fillMaxWidth()) {
-                    Text(device.name)
+                    Text("${device.name} · LUN ${device.lun}")
                     Text(device.id, style = MaterialTheme.typography.labelSmall)
+                    if (device.capacity > 0) Text(size(device.capacity), style = MaterialTheme.typography.labelMedium)
                     Text(stringResource(R.string.allow_usb), style = MaterialTheme.typography.labelMedium)
                 }
             }
         }
         if (state.probing) CircularProgressIndicator()
-        state.target?.let { Text(stringResource(R.string.target, it.name, size(it.capacity)), color = MaterialTheme.colorScheme.primary) }
+        state.target?.let { Text(stringResource(R.string.target, "${it.name} · LUN ${it.lun}", size(it.capacity)), color = MaterialTheme.colorScheme.primary) }
     }
 }
 

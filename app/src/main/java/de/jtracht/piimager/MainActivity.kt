@@ -54,7 +54,7 @@ class MainActivity : ComponentActivity() {
                         try {
                             startForegroundService(Intent(this, ImagingService::class.java)
                                 .putExtra("id", target.id).putExtra("vendor", target.vendor).putExtra("product", target.product)
-                                .putExtra("capacity", target.capacity).putExtra("sha256", hash))
+                                .putExtra("capacity", target.capacity).putExtra("sha256", hash).putExtra("lun", target.lun))
                         } catch (e: Exception) { model.error(e.message ?: "Cannot start imaging service") }
                     },
                     cancelWrite = { startService(Intent(this, ImagingService::class.java).setAction(ImagingService.CANCEL)) }

@@ -6,7 +6,7 @@ import de.jtracht.piimager.domain.BlockTarget
 import me.jahnen.libaums.core.driver.BlockDeviceDriverFactory
 import java.nio.ByteBuffer
 
-data class Storage(val id: String, val name: String, val vendor: Int, val product: Int, val capacity: Long = 0)
+data class Storage(val id: String, val name: String, val vendor: Int, val product: Int, val capacity: Long = 0, val lun: Int = 0)
 
 class UsbStorage(context: Context) {
     val manager = context.getSystemService(UsbManager::class.java)
@@ -27,7 +27,7 @@ class UsbStorage(context: Context) {
         return device
     }
 
-    fun open(storage: Storage): BlockTarget {
+    private fun transport(storage: Storage): AndroidBulkTransport {
         val device = device(storage)
         check(manager.hasPermission(device)) { "USB permission required" }
         val iface = massInterface(device) ?: error("Unsupported USB interface")
@@ -35,10 +35,26 @@ class UsbStorage(context: Context) {
             .filter { it.type == UsbConstants.USB_ENDPOINT_XFER_BULK }
         val input = endpoints.firstOrNull { it.direction == UsbConstants.USB_DIR_IN } ?: error("Missing USB input")
         val output = endpoints.firstOrNull { it.direction == UsbConstants.USB_DIR_OUT } ?: error("Missing USB output")
-        val communication = AndroidBulkTransport(manager, device, iface, output, input)
+        return AndroidBulkTransport(manager, device, iface, output, input)
+    }
+
+    fun logicalUnits(storage: Storage): List<Storage> {
+        transport(storage).use { communication ->
+            val max = ByteArray(1)
+            val response = communication.controlTransfer(0xa1, 0xfe, 0, communication.usbInterface.id, max, 1)
+            // Per Bulk-Only Transport, a stalled GET_MAX_LUN means LUN 0 only.
+            val last = if (response == 1) max[0].toInt() and 255 else 0
+            require(last in 0..15) { "Invalid USB logical-unit count" }
+            return (0..last).map { storage.copy(capacity = 0, lun = it) }
+        }
+    }
+
+    fun open(storage: Storage): BlockTarget {
+        require(storage.lun in 0..15) { "Invalid USB logical unit" }
+        val communication = transport(storage)
         try {
-            // LUN 0 only. Do not parse existing partitions: blank and ext4 media must work too.
-            val driver = BlockDeviceDriverFactory.createBlockDevice(communication, 0)
+            // Do not parse existing partitions: blank and ext4 media must work too.
+            val driver = BlockDeviceDriverFactory.createBlockDevice(communication, storage.lun.toByte())
             driver.init()
             return object : BlockTarget {
                 override val blockSize get() = driver.blockSize

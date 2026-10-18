@@ -4,6 +4,9 @@ import android.content.Context
 import android.net.Uri
 import de.jtracht.piimager.domain.Imaging
 import de.jtracht.piimager.domain.PreparedImage
+import de.jtracht.piimager.domain.Customization
+import de.jtracht.piimager.domain.CustomizationGenerator
+import de.jtracht.piimager.domain.InitFormat
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import org.json.JSONArray
@@ -18,7 +21,7 @@ import javax.net.ssl.HttpsURLConnection
 data class OsEntry(
     val name: String, val description: String = "", val url: String = "",
     val sha256: String = "", val size: Long = 0, val sublist: String = "",
-    val children: List<OsEntry> = emptyList()
+    val children: List<OsEntry> = emptyList(), val initFormat: String = ""
 )
 
 class ImageRepository(private val context: Context) {
@@ -45,7 +48,7 @@ class ImageRepository(private val context: Context) {
             val item = array.getJSONObject(index)
             OsEntry(item.getString("name"), item.optString("description"), item.optString("url"),
                 item.optString("extract_sha256"), item.optLong("extract_size"), item.optString("subitems_url"),
-                item.optJSONArray("subitems")?.let { parseCatalog(it, depth + 1) } ?: emptyList())
+                item.optJSONArray("subitems")?.let { parseCatalog(it, depth + 1) } ?: emptyList(), item.optString("init_format"))
         }
     }
 
@@ -70,7 +73,10 @@ class ImageRepository(private val context: Context) {
         error("Too many redirects")
     }
 
-    suspend fun prepare(entry: OsEntry?, uri: Uri?, checkpoint: (Long) -> Unit): PreparedImage {
+    suspend fun prepare(entry: OsEntry?, uri: Uri?, settings: Customization = Customization(),
+                        localFormat: InitFormat = InitFormat.NONE, checkpoint: (Long) -> Unit): PreparedImage {
+        val format = entry?.let { InitFormat.fromId(it.initFormat) } ?: localFormat
+        settings.validate(format)
         val destination = File(context.filesDir, "prepared.img")
         val temporary = File(context.filesDir, "preparing.tmp")
         destination.delete()
@@ -104,8 +110,14 @@ class ImageRepository(private val context: Context) {
                 (context.contentResolver.openInputStream(uri) ?: error("Cannot open image")).use { copy(it) }
             }
             check(temporary.length() > 0) { "Empty image" }
-            val hash = Imaging.digest(temporary.inputStream())
+            var hash = Imaging.digest(temporary.inputStream())
             if (entry != null) check(hash.equals(entry.sha256, ignoreCase = true)) { "SHA-256 mismatch" }
+            if (settings.enabled) {
+                jobContext.ensureActive()
+                val payload = CustomizationGenerator.generate(settings, format)
+                BootImageEditor.apply(temporary, payload) { jobContext.ensureActive() }
+                hash = Imaging.digest(temporary.inputStream())
+            }
             check(temporary.renameTo(destination)) { "Cannot store prepared image" }
             return PreparedImage(destination, entry?.name ?: uri?.lastPathSegment?.substringAfterLast('/') ?: "Image", hash)
         } finally { temporary.delete() }

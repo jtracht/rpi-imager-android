@@ -21,4 +21,5 @@ lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-com
 coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 libaums = { module = "me.jahnen.libaums:core", version = "0.10.0" }
 xz = { module = "org.tukaani:xz", version = "1.10" }
+codec = { module = "commons-codec:commons-codec", version = "1.18.0" }
 junit = { module = "junit:junit", version = "4.13.2" }

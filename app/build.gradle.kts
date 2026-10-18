@@ -15,7 +15,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = providers.environmentVariable("ANDROID_VERSION_CODE").orElse("1").get().toInt()
-        versionName = providers.environmentVariable("ANDROID_VERSION_NAME").orElse("0.1.0").get()
+        versionName = providers.environmentVariable("ANDROID_VERSION_NAME").orElse("0.2.0").get()
         buildConfigField("String", "UPSTREAM_TAG", "\"${upstreamInfo.getProperty("tag")}\"")
         buildConfigField("String", "UPSTREAM_COMMIT", "\"${upstreamInfo.getProperty("commit")}\"")
     }
@@ -37,6 +37,8 @@ android {
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true; buildConfig = true }
+    // The FAT implementation only uses Android Log; image/crypto tests run on the JVM.
+    testOptions { unitTests.isReturnDefaultValues = true }
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
         // Our Android USB Host transport does not use these legacy JNI helpers.
@@ -53,5 +55,6 @@ dependencies {
     implementation(libs.coroutines.android)
     implementation(libs.libaums)
     implementation(libs.xz)
+    implementation(libs.codec)
     testImplementation(libs.junit)
 }

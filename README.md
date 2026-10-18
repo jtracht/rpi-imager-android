@@ -7,11 +7,28 @@ Unabhängige native Android-Portierung auf Basis des [Raspberry Pi Imager](https
 Unter [Releases](https://github.com/jtracht/rpi-imager-android/releases) die signierte `pi-imager-android.apk` laden. Android 8 oder neuer, USB-Host/OTG und ein USB-SD-Kartenleser oder USB-Stick mit SCSI/Bulk-Only-Transport sind erforderlich. Kein Root erforderlich. Interne SD-Steckplätze können über Androids Dateiauswahl nicht als Rohdatenträger beschrieben werden.
 
 1. Betriebssystem aus dem offiziellen Katalog oder lokale IMG-/ISO-Datei auswählen. XZ, GZ und ZIP werden anhand ihrer Dateisignatur erkannt. Bei ZIP wird die erste IMG-/ISO-Datei verwendet.
-2. Image vorbereiten. Das entpackte Image liegt im privaten App-Speicher; entsprechend viel freier Speicher ist erforderlich. Katalog-Images brauchen einen gültigen SHA-256-Wert und werden vor dem Schreiben geprüft. Lokale Images erhalten einen eigenen SHA-256-Wert, jedoch keinen externen Herkunftsnachweis.
-3. Datenträger in den Android-Speichereinstellungen auswerfen, angeschlossen lassen und in der App USB-Zugriff erlauben. Das Gerät und seine Kapazität werden angezeigt.
-4. Ziel im Löschdialog kontrollieren und Schreiben bestätigen. Danach prüft die App jeden geschriebenen Sektor einschließlich der Auffüllbytes. Erst nach erfolgreicher Prüfung abziehen.
+2. Optional „Ersten Start konfigurieren“ öffnen: Benutzerkonto, Hostname, Zeitzone, Tastaturlayout, WLAN, SSH und Hardware-Schnittstellen einstellen. Bei lokalen Images das tatsächlich unterstützte Einrichtungsformat auswählen; bei Katalog-Images wird `init_format` übernommen.
+3. Image vorbereiten. Das entpackte Image liegt im privaten App-Speicher; entsprechend viel freier Speicher ist erforderlich. Katalog-Images brauchen einen gültigen SHA-256-Wert. Die App prüft zuerst das Original, passt danach die FAT32-Bootpartition an und berechnet einen neuen SHA-256-Wert für das konfigurierte Image. Lokale Images erhalten einen eigenen SHA-256-Wert, jedoch keinen externen Herkunftsnachweis.
+4. Datenträger in den Android-Speichereinstellungen auswerfen, angeschlossen lassen und in der App USB-Zugriff erlauben. Bei Kartenlesern mit mehreren Speichereinheiten werden die bestückten LUNs einzeln mit Kapazität angezeigt.
+5. Ziel einschließlich LUN im Löschdialog kontrollieren und Schreiben bestätigen. Danach prüft die App jeden geschriebenen Sektor einschließlich der Auffüllbytes. Erst nach erfolgreicher Prüfung abziehen.
 
-Der Schreibvorgang läuft als Vordergrunddienst mit Benachrichtigung und Wake Lock weiter. Ein Abbruch, Prozessende, Neustart oder Abziehen hinterlässt eventuell einen unvollständigen Datenträger; es gibt keinen automatischen Neustart des Schreibvorgangs. Downloads laufen nur im App-Prozess und sind nicht fortsetzbar. Noch nicht umgesetzt: WLAN-/SSH-/Benutzer-Vorkonfiguration, Raspberry Pi Connect, UAS-only-Geräte, mehrere LUNs. Physische USB-Kompatibilität und TalkBack sind separat auf Geräten zu testen; CI allein bestätigt diese nicht.
+Der Schreibvorgang läuft als Vordergrunddienst mit Benachrichtigung und Wake Lock weiter. Ein Abbruch, Prozessende, Neustart oder Abziehen hinterlässt eventuell einen unvollständigen Datenträger; es gibt keinen automatischen Neustart des Schreibvorgangs. Downloads laufen nur im App-Prozess und sind nicht fortsetzbar. Physische USB-Kompatibilität und TalkBack sind separat auf Geräten zu testen; CI allein bestätigt diese nicht.
+
+## Vorkonfiguration ohne Root
+
+Die App bearbeitet eine temporäre Image-Datei, keine auf Android eingehängte Partition. Partitionstabelle und FAT32-Geometrie werden geprüft; sämtliche Dateisystemzugriffe bleiben innerhalb der Bootpartition. Bei GPT werden Header- und Tabellen-Prüfsummen kontrolliert. Die erzeugten Dateien werden nach dem Schreiben erneut gelesen. Beide FAT-Kopien und die FSInfo-Sicherung werden synchronisiert. Die Linux-Rootpartition wird nicht verändert.
+
+| Format des Images | Erzeugte Dateien / Verfahren |
+| --- | --- |
+| `cloudinit`, `cloudinit-rpi` | `user-data`, `network-config` bei WLAN, `meta-data` mit neuer Instanz-ID und passender NoCloud-Kerneloption |
+| `systemd` | `firstrun.sh`, Einmal-Start über Kerneloptionen, Benutzer-/SSH-Einrichtung über Raspberry-Pi-OS-Helfer; WLAN über NetworkManager-Profil oder Legacy-Helfer |
+| `rpi-preseed` | `rpi-preseed.toml` mit System-, Benutzer-, SSH-, WLAN-, Locale- und Schnittstellen-Einstellungen |
+
+Unterstützt sind Benutzername und Passwort, Hostname, Zeitzone, Tastaturlayout, WPA-Personal-/offene und versteckte WLANs, WLAN-Land, SSH mit Passwort oder öffentlichen OpenSSH-Schlüsseln, optionales Sudo ohne Passwort sowie I²C, SPI und 1-Wire. Benutzerpasswörter stehen als gesalzene Linux-SHA-512-crypt-Hashes im Image. WLAN-Passwörter müssen je nach Einrichtungsverfahren im Klartext auf der Bootpartition stehen. Die Einstellungen bleiben nur im Arbeitsspeicher der App-Sitzung; auch ungespeicherte Eingaben überstehen einen Bildschirmwechsel durch Rotation. Sie werden nicht in Androids gespeicherten Zustand oder Einstellungen geschrieben.
+
+Das vorbereitete Image kann Zugangsdaten enthalten und bleibt bis zur nächsten Vorbereitung, „Image und Einstellungen löschen“, App-Daten-Löschung oder Deinstallation im privaten App-Speicher. Der Löschknopf ist auch nach einem App-Neustart verfügbar. Löschen entfernt die Datei; es ist kein garantiertes physisches Überschreiben von Flash-Speicher.
+
+Grenzen: Vorkonfiguration benötigt eine FAT32-Bootpartition mit `config.txt` und `cmdline.txt` in einem MBR-/GPT- oder eigenständigen FAT32-Image. FAT16-/ext4-only-/beliebige ISO-Bootdateisysteme lassen sich unverändert schreiben, aber nicht vorkonfigurieren. Ein als `systemd` markiertes Image braucht die Raspberry-Pi-OS-Helfer `imager_custom` und gegebenenfalls `userconf`. Unbekannte Katalogformate werden nicht automatisch umgedeutet. Raspberry-Pi-Connect-Anmeldung, Secure Boot, USB-Gadget-/Fastboot-Provisionierung und UAS-only-Geräte sind weiterhin nicht portiert. Die App behauptet daher keine vollständige Funktionsgleichheit mit der Desktop-Anwendung.
 
 ## Automatische Releases
 
@@ -21,6 +38,7 @@ Der Schreibvorgang läuft als Vordergrunddienst mit Benachrichtigung und Wake Lo
 - Der Sync ruft den Release-Workflow ausdrücklich auf: Tags, die mit `GITHUB_TOKEN` erstellt werden, lösen keinen weiteren Push-Workflow aus. Es wird nicht für jeden Release ein neues GitHub-Fork-Repository erstellt; stattdessen aktualisiert dieses Android-Derivat seinen festgehaltenen Upstream-Quellstand.
 - Release-Anhänge: signierte Universal-APK, vollständiger Upstream-Quellcode als Archiv, `upstream.properties` und `SHA256SUMS`. Der USB-Transport verwendet ausschließlich Android USB Host; alte JNI-Hilfsbibliotheken von libaums werden ausgeschlossen, damit sie die Unterstützung für Geräte mit 16-KB-Speicherseiten nicht einschränken.
 - `ci.yml` prüft Pull Requests und `main`: Upstream-Vertrag, Sync-Tests, Schreibkern-Tests, Android Lint und Debug-APK. Eine inkompatible Upstream-Konfiguration stoppt den Build statt stillschweigend weiterzumachen.
+- Sowohl CI als auch Release prüfen generierte Vorkonfigurationsdateien mit unabhängigen YAML-/TOML-Parsern und POSIX-Shell-Syntaxprüfung. Die Skripte werden dabei nicht ausgeführt.
 
 ### GitHub-Einrichtung
 

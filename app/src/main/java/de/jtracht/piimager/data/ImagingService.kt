@@ -40,7 +40,7 @@ class ImagingService : Service() {
             try {
                 wakeLock.acquire(6 * 60 * 60 * 1000L)
                 val request = requireNotNull(intent)
-                val target = Storage(requireNotNull(request.getStringExtra("id")), "USB", request.getIntExtra("vendor", -1), request.getIntExtra("product", -1))
+                val target = Storage(requireNotNull(request.getStringExtra("id")), "USB", request.getIntExtra("vendor", -1), request.getIntExtra("product", -1), lun = request.getIntExtra("lun", 0))
                 val file = File(filesDir, "prepared.img")
                 check(Imaging.digest(file.inputStream()) == request.getStringExtra("sha256")) { "Prepared image changed" }
                 ensureActive()
