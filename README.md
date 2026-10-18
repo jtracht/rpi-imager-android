@@ -51,6 +51,10 @@ python -m unittest discover -s scripts -p 'test_*.py'
 
 Unter Windows `gradlew.bat` verwenden. Für einen signierten Release die Umgebungsvariablen `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` setzen und `assembleRelease` ausführen. Versionierung erfolgt über `ANDROID_VERSION_NAME` und `ANDROID_VERSION_CODE`; CI verwendet Sekunden seit dem 1. Januar 2024 UTC, gemeinsam für Tag- und Sync-Builds. Der unveränderte Gradle Wrapper ist mit Prüfsumme abgesichert.
 
+## Prüfung und Screenshots
+
+Build-, Release- und Emulator-Nachweise stehen in [docs/VALIDATION.md](docs/VALIDATION.md). Die Oberfläche wurde bei 320, 360, 411, 600 und 840 dp geprüft: [Handy](docs/screenshots/width-360.png), [Tablet](docs/screenshots/width-840.png). Für eine Wiederholung die APK auf einem laufenden Emulator installieren und `python scripts/emulator_smoke.py /pfad/zu/adb emulator-5554` ausführen. Der Test schreibt keine USB-Datenträger.
+
 ## Nachweise und Lizenz
 
 `upstream.properties` und der Submodul-Zeiger dokumentieren den genauen Stand. Die generierten App-Assets enthalten Katalog-URL und Upstream-Lizenz. Apache-2.0 für den Android-Code; siehe `LICENSE`, `NOTICE` und die separaten Lizenzhinweise im Upstream. Diese App ist kein offizielles Produkt der Raspberry Pi Ltd und verwendet kein Raspberry-Pi-Markenlogo. Keine Telemetrie oder Analyse-SDKs. Netzwerkzugriffe erfolgen für den OS-Katalog und die vom Benutzer ausgewählten Images.
