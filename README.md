@@ -28,6 +28,8 @@ Unterstützt sind Benutzername und Passwort, Hostname, Zeitzone, Tastaturlayout,
 
 Das vorbereitete Image kann Zugangsdaten enthalten und bleibt bis zur nächsten Vorbereitung, „Image und Einstellungen löschen“, App-Daten-Löschung oder Deinstallation im privaten App-Speicher. Der Löschknopf ist auch nach einem App-Neustart verfügbar. Löschen entfernt die Datei; es ist kein garantiertes physisches Überschreiben von Flash-Speicher.
 
+Bei lokalen Images lässt eine ausgeschaltete WLAN-Einrichtung vorhandene Netzwerkeinstellungen des Ausgangsimages unverändert. Die Android-App verändert oder löscht die ausgewählte Originaldatei nicht.
+
 Grenzen: Vorkonfiguration benötigt eine FAT32-Bootpartition mit `config.txt` und `cmdline.txt` in einem MBR-/GPT- oder eigenständigen FAT32-Image. FAT16-/ext4-only-/beliebige ISO-Bootdateisysteme lassen sich unverändert schreiben, aber nicht vorkonfigurieren. Ein als `systemd` markiertes Image braucht die Raspberry-Pi-OS-Helfer `imager_custom` und gegebenenfalls `userconf`. Unbekannte Katalogformate werden nicht automatisch umgedeutet. Raspberry-Pi-Connect-Anmeldung, Secure Boot, USB-Gadget-/Fastboot-Provisionierung und UAS-only-Geräte sind weiterhin nicht portiert. Die App behauptet daher keine vollständige Funktionsgleichheit mit der Desktop-Anwendung.
 
 ## Automatische Releases
@@ -65,13 +67,15 @@ cd rpi-imager-android
 python scripts/prepare_upstream.py
 python -m unittest discover -s scripts -p 'test_*.py'
 ./gradlew testDebugUnitTest lintDebug assembleDebug
+python -m pip install PyYAML==6.0.2
+python scripts/validate_customization.py
 ```
 
 Unter Windows `gradlew.bat` verwenden. Für einen signierten Release die Umgebungsvariablen `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` setzen und `assembleRelease` ausführen. Versionierung erfolgt über `ANDROID_VERSION_NAME` und `ANDROID_VERSION_CODE`; CI verwendet Sekunden seit dem 1. Januar 2024 UTC, gemeinsam für Tag- und Sync-Builds. Der unveränderte Gradle Wrapper ist mit Prüfsumme abgesichert.
 
 ## Prüfung und Screenshots
 
-Build-, Release- und Emulator-Nachweise stehen in [docs/VALIDATION.md](docs/VALIDATION.md). Die Oberfläche wurde bei 320, 360, 411, 600 und 840 dp geprüft: [Handy](docs/screenshots/width-360.png), [Tablet](docs/screenshots/width-840.png). Für eine Wiederholung die APK auf einem laufenden Emulator installieren und `python scripts/emulator_smoke.py /pfad/zu/adb emulator-5554` ausführen. Der Test schreibt keine USB-Datenträger.
+Build-, Release- und Emulator-Nachweise der ersten Version stehen in [docs/VALIDATION.md](docs/VALIDATION.md), die Prüfungen der Vorkonfiguration in [docs/VALIDATION-0.2.0.md](docs/VALIDATION-0.2.0.md). Die Oberfläche wurde bei 320, 360, 411, 600 und 840 dp geprüft: [Handy](docs/screenshots/width-360.png), [Tablet](docs/screenshots/width-840.png), [System-Einstellungen](docs/screenshots/settings-system-320.png), [WLAN-Einstellungen](docs/screenshots/settings-wifi-840.png). Für eine Wiederholung die APK auf einem laufenden Emulator installieren und `python scripts/emulator_smoke.py /pfad/zu/adb emulator-5554` ausführen. Der Test schreibt keine USB-Datenträger.
 
 ## Nachweise und Lizenz
 
