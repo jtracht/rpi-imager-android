@@ -37,7 +37,11 @@ android {
     compileOptions { sourceCompatibility = JavaVersion.VERSION_17; targetCompatibility = JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true; buildConfig = true }
-    packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
+    packaging {
+        resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        // Our Android USB Host transport does not use these legacy JNI helpers.
+        jniLibs.excludes += setOf("**/liberrno-lib.so", "**/libusb-lib.so")
+    }
 }
 dependencies {
     implementation(platform(libs.compose.bom))

@@ -4,7 +4,6 @@ import android.content.Context
 import android.hardware.usb.*
 import de.jtracht.piimager.domain.BlockTarget
 import me.jahnen.libaums.core.driver.BlockDeviceDriverFactory
-import me.jahnen.libaums.core.usb.UsbCommunicationFactory
 import java.nio.ByteBuffer
 
 data class Storage(val id: String, val name: String, val vendor: Int, val product: Int, val capacity: Long = 0)
@@ -36,7 +35,7 @@ class UsbStorage(context: Context) {
             .filter { it.type == UsbConstants.USB_ENDPOINT_XFER_BULK }
         val input = endpoints.firstOrNull { it.direction == UsbConstants.USB_DIR_IN } ?: error("Missing USB input")
         val output = endpoints.firstOrNull { it.direction == UsbConstants.USB_DIR_OUT } ?: error("Missing USB output")
-        val communication = UsbCommunicationFactory.createUsbCommunication(manager, device, iface, output, input)
+        val communication = AndroidBulkTransport(manager, device, iface, output, input)
         try {
             // LUN 0 only. Do not parse existing partitions: blank and ext4 media must work too.
             val driver = BlockDeviceDriverFactory.createBlockDevice(communication, 0)

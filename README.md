@@ -19,7 +19,7 @@ Der Schreibvorgang läuft als Vordergrunddienst mit Benachrichtigung und Wake Lo
 - Neue Releases werden in Veröffentlichungsreihenfolge verarbeitet: Submodul aktualisieren, Commit und Konfiguration erfassen, Android-Tag `upstream/<upstream-tag>-android.1` erstellen, APK bauen und Release veröffentlichen. Zwischen zwei Prüfungen erschienene Releases werden nicht übersprungen; je Lauf wird eines verarbeitet. Ein fehlgeschlagener Build wird beim nächsten Lauf zuerst erneut versucht.
 - Eigene Tags **jedes Namens** lösen `release.yml` aus und erhalten ebenfalls einen Release mit APK. Tags sind unveränderliche Quellstände. Nach einer Fehlerkorrektur einen neuen Tag erstellen oder beim Wiederholen den ursprünglichen Workflow korrigieren; ein Retry desselben Tags baut weiterhin dessen ursprünglichen Code.
 - Der Sync ruft den Release-Workflow ausdrücklich auf: Tags, die mit `GITHUB_TOKEN` erstellt werden, lösen keinen weiteren Push-Workflow aus. Es wird nicht für jeden Release ein neues GitHub-Fork-Repository erstellt; stattdessen aktualisiert dieses Android-Derivat seinen festgehaltenen Upstream-Quellstand.
-- Release-Anhänge: signierte Universal-APK (keine nativen ABI-Abhängigkeiten), vollständiger Upstream-Quellcode als Archiv, `upstream.properties` und `SHA256SUMS`.
+- Release-Anhänge: signierte Universal-APK, vollständiger Upstream-Quellcode als Archiv, `upstream.properties` und `SHA256SUMS`. Der USB-Transport verwendet ausschließlich Android USB Host; alte JNI-Hilfsbibliotheken von libaums werden ausgeschlossen, damit sie die Unterstützung für Geräte mit 16-KB-Speicherseiten nicht einschränken.
 - `ci.yml` prüft Pull Requests und `main`: Upstream-Vertrag, Sync-Tests, Schreibkern-Tests, Android Lint und Debug-APK. Eine inkompatible Upstream-Konfiguration stoppt den Build statt stillschweigend weiterzumachen.
 
 ### GitHub-Einrichtung
@@ -49,7 +49,7 @@ python -m unittest discover -s scripts -p 'test_*.py'
 ./gradlew testDebugUnitTest lintDebug assembleDebug
 ```
 
-Unter Windows `gradlew.bat` verwenden. Für einen signierten Release die Umgebungsvariablen `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` setzen und `assembleRelease` ausführen. Versionierung erfolgt über `ANDROID_VERSION_NAME` und `ANDROID_VERSION_CODE`; CI verwendet eine aufsteigende Workflow-Laufnummer. Der unveränderte Gradle Wrapper ist mit Prüfsumme abgesichert.
+Unter Windows `gradlew.bat` verwenden. Für einen signierten Release die Umgebungsvariablen `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` setzen und `assembleRelease` ausführen. Versionierung erfolgt über `ANDROID_VERSION_NAME` und `ANDROID_VERSION_CODE`; CI verwendet Sekunden seit dem 1. Januar 2024 UTC, gemeinsam für Tag- und Sync-Builds. Der unveränderte Gradle Wrapper ist mit Prüfsumme abgesichert.
 
 ## Nachweise und Lizenz
 

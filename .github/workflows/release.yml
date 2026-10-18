@@ -34,7 +34,8 @@ jobs:
           git check-ref-format "refs/tags/$RELEASE_TAG"
           test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
           echo "ANDROID_VERSION_NAME=$RELEASE_TAG" >> "$GITHUB_ENV"
-          echo "ANDROID_VERSION_CODE=$((100 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+          # Wall-clock version codes share one sequence across push and reusable runs.
+          echo "ANDROID_VERSION_CODE=$(($(date +%s) - 1704067200))" >> "$GITHUB_ENV"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
