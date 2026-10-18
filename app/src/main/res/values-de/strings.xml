@@ -1,4 +1,14 @@
 <resources>
+    <string name="model_title">Raspberry Pi</string>
+    <string name="model_choose">Pi-Modell wählen</string>
+    <string name="model_all">Alle Modelle</string>
+    <string name="model_all_hint">Den gesamten Katalog ohne Filter nach Modell anzeigen.</string>
+    <string name="model_hint">Wähle deinen Pi, um den Betriebssystemkatalog zu filtern. Es gelten die Angaben im Katalog. Lokale Images bitte selbst auf Kompatibilität prüfen.</string>
+    <string name="model_change_hint">Ein Modellwechsel setzt die Image-Auswahl und Einstellungen für den ersten Start zurück. Die zwischengespeicherte Datei lässt sich über „Image und Einstellungen löschen“ entfernen.</string>
+    <string name="catalog_search">Betriebssysteme suchen</string>
+    <string name="catalog_search_hint">Suche in dieser Kategorie und geladenen Unterkategorien. Entfernte Kategorien öffnen, um deren Inhalte zu durchsuchen.</string>
+    <string name="catalog_empty">Keine passenden Images. Suche löschen, zurückgehen oder ein anderes Modell wählen.</string>
+    <string name="search_clear">Leeren</string>
     <string name="app_name">Pi Imager · Android</string>
     <string name="title">Dein Pi startet hier.</string>
     <string name="subtitle">Schreibe ein Betriebssystem auf einen USB-Stick oder eine SD-Karte im Kartenleser.</string>

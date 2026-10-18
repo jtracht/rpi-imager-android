@@ -1,4 +1,14 @@
 <resources>
+    <string name="model_title">Raspberry Pi</string>
+    <string name="model_choose">Choose Pi model</string>
+    <string name="model_all">All models</string>
+    <string name="model_all_hint">Show the complete catalog without filtering by board.</string>
+    <string name="model_hint">Choose your Pi to filter the OS catalog. Compatibility follows the catalog information. Check local images yourself.</string>
+    <string name="model_change_hint">Changing the model clears the current image selection and first-boot settings. The cached file can be removed with Clear image and settings.</string>
+    <string name="catalog_search">Search operating systems</string>
+    <string name="catalog_search_hint">Search this category and its loaded subcategories. Open remote categories to search their contents.</string>
+    <string name="catalog_empty">No matching images. Clear the search, go back, or choose another model.</string>
+    <string name="search_clear">Clear</string>
     <string name="app_name">Pi Imager · Android</string>
     <string name="title">Your Pi starts here.</string>
     <string name="subtitle">Write an operating system to a USB drive or SD card reader.</string>

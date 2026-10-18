@@ -18,23 +18,12 @@ import java.util.zip.GZIPInputStream
 import java.util.zip.ZipInputStream
 import javax.net.ssl.HttpsURLConnection
 
-data class OsEntry(
-    val name: String, val description: String = "", val url: String = "",
-    val sha256: String = "", val size: Long = 0, val sublist: String = "",
-    val children: List<OsEntry> = emptyList(), val initFormat: String = "",
-    val capabilities: Set<String> = emptySet()
-) {
-    fun validateCustomization(settings: Customization) {
-        require(!settings.enabled || !settings.connect || "rpi_connect" in capabilities) { "This catalog image does not advertise Raspberry Pi Connect support" }
-    }
-}
-
 class ImageRepository(private val context: Context) {
     fun rootUrl(): String = context.assets.open("upstream.json").bufferedReader().use {
         JSONObject(it.readText()).getString("catalog_url")
     }
 
-    suspend fun catalog(url: String): List<OsEntry> = remote(url) { source ->
+    suspend fun catalog(url: String): CatalogDocument = remote(url) { source ->
         val output = ByteArrayOutputStream()
         val buffer = ByteArray(8192)
         while (true) {
@@ -44,7 +33,19 @@ class ImageRepository(private val context: Context) {
             output.write(buffer, 0, count)
         }
         val bytes = output.toByteArray()
-        parseCatalog(JSONObject(String(bytes, Charsets.UTF_8)).getJSONArray("os_list"))
+        val document = JSONObject(String(bytes, Charsets.UTF_8))
+        val models = document.optJSONObject("imager")?.optJSONArray("devices")
+        CatalogDocument(parseCatalog(document.getJSONArray("os_list")), models?.let { array ->
+            (0 until array.length()).mapNotNull { index ->
+                val item = array.getJSONObject(index)
+                val tags = strings(item.optJSONArray("tags"))
+                val matching = item.optString("matching_type")
+                val name = item.optString("name").trim()
+                // An explicit, local "show all" option covers empty/no-filter entries.
+                if (name.isEmpty() || tags.isEmpty() || matching !in setOf("inclusive", "exclusive")) null
+                else PiModel(name, item.optString("description"), tags, matching == "inclusive")
+            }.distinctBy { it.name }
+        } ?: emptyList())
     }
 
     private fun parseCatalog(array: JSONArray, depth: Int = 0): List<OsEntry> {
@@ -54,9 +55,14 @@ class ImageRepository(private val context: Context) {
             OsEntry(item.getString("name"), item.optString("description"), item.optString("url"),
                 item.optString("extract_sha256"), item.optLong("extract_size"), item.optString("subitems_url"),
                 item.optJSONArray("subitems")?.let { parseCatalog(it, depth + 1) } ?: emptyList(), item.optString("init_format"),
-                item.optJSONArray("capabilities")?.let { values -> (0 until values.length()).map { values.getString(it) }.toSet() } ?: emptySet())
+                strings(item.optJSONArray("capabilities")),
+                if (item.has("devices")) strings(item.getJSONArray("devices")) else null)
         }
     }
+
+    private fun strings(array: JSONArray?): Set<String> = array?.let { values ->
+        (0 until values.length()).map { values.getString(it) }.toSet()
+    } ?: emptySet()
 
     private suspend fun <T> remote(address: String, consume: suspend (InputStream) -> T): T {
         var url = URL(address)
@@ -80,10 +86,11 @@ class ImageRepository(private val context: Context) {
     }
 
     suspend fun prepare(entry: OsEntry?, uri: Uri?, settings: Customization = Customization(),
-                        localFormat: InitFormat = InitFormat.NONE, checkpoint: (Long) -> Unit): PreparedImage {
+                        localFormat: InitFormat = InitFormat.NONE, model: PiModel? = null, checkpoint: (Long) -> Unit): PreparedImage {
         val format = entry?.let { InitFormat.fromId(it.initFormat) } ?: localFormat
         settings.validate(format)
         entry?.validateCustomization(settings)
+        require(entry == null || CatalogSelection.supports(entry, model)) { "This image does not match the selected Raspberry Pi model" }
         val destination = File(context.filesDir, "prepared.img")
         val temporary = File(context.filesDir, "preparing.tmp")
         destination.delete()

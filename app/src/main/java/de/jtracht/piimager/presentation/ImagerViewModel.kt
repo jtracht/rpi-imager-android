@@ -22,7 +22,9 @@ data class ScreenState(
     val bytes: Long = 0, val error: String? = null,
     val customization: Customization = Customization(), val localFormat: InitFormat = InitFormat.NONE,
     val configurationOpen: Boolean = false, val draft: Customization = Customization(),
-    val draftFormat: InitFormat = InitFormat.NONE, val draftSection: Int = 0
+    val draftFormat: InitFormat = InitFormat.NONE, val draftSection: Int = 0,
+    val models: List<PiModel> = emptyList(), val model: PiModel? = null,
+    val modelsOpen: Boolean = false, val catalogQuery: String = ""
 )
 
 class ImagerViewModel(app: Application) : AndroidViewModel(app) {
@@ -32,6 +34,8 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
     val state = mutable.asStateFlow()
     private var prepareJob: Job? = null
     private val history = ArrayDeque<List<OsEntry>>()
+    private var catalogJob: Job? = null
+    private var catalogGeneration = 0
 
     init { refresh() }
     fun refresh() {
@@ -79,44 +83,66 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
         mutable.update { it.copy(uri = uri, entry = null, prepared = null, error = null, localFormat = InitFormat.NONE, customization = Customization()) }
     }
 
+    fun openModels() {
+        if (locked()) return
+        mutable.update { it.copy(modelsOpen = true, catalogOpen = false, catalogQuery = "", error = null) }
+        if (mutable.value.models.isEmpty()) loadCatalog(repository.rootUrl(), root = true)
+    }
+    fun closeModels() { mutable.update { it.copy(modelsOpen = false) } }
+    fun selectModel(model: PiModel?) {
+        if (locked() || mutable.value.catalogBusy) return
+        if (model == mutable.value.model) { closeModels(); return }
+        history.clear()
+        // A board change invalidates both the image choice and its session-only credentials.
+        mutable.update { it.copy(model = model, modelsOpen = false, entry = null, uri = null,
+            prepared = null, customization = Customization(), draft = Customization(), configurationOpen = false,
+            localFormat = InitFormat.NONE, catalogQuery = "", entries = emptyList(), error = null) }
+    }
+    fun searchCatalog(query: String) { mutable.update { it.copy(catalogQuery = query.take(200)) } }
+    fun visibleEntries(state: ScreenState) = CatalogSelection.search(CatalogSelection.compatible(state.entries, state.model), state.catalogQuery)
+
     fun openCatalog() {
         if (locked()) return
         history.clear()
-        mutable.update { it.copy(catalogOpen = true, error = null) }
-        loadCatalog(repository.rootUrl())
+        mutable.update { it.copy(catalogOpen = true, modelsOpen = false, catalogQuery = "", entries = emptyList(), error = null) }
+        loadCatalog(repository.rootUrl(), root = true)
     }
     fun closeCatalog() { mutable.update { it.copy(catalogOpen = false) } }
     fun backCatalog() {
         if (history.isEmpty()) closeCatalog()
-        else mutable.update { it.copy(entries = history.removeLast()) }
+        else mutable.update { it.copy(entries = history.removeLast(), catalogQuery = "") }
     }
     fun selectEntry(entry: OsEntry) {
         if (mutable.value.catalogBusy) return
+        val selected = mutable.value.entries.firstOrNull { it.name == entry.name && it.url == entry.url && it.sublist == entry.sublist } ?: return
         when {
-            entry.children.isNotEmpty() -> {
+            selected.children.isNotEmpty() -> {
                 history.addLast(mutable.value.entries)
-                mutable.update { it.copy(entries = entry.children) }
+                mutable.update { it.copy(entries = selected.children, catalogQuery = "") }
             }
-            entry.sublist.isNotBlank() -> {
+            selected.sublist.isNotBlank() -> {
                 history.addLast(mutable.value.entries)
-                loadCatalog(entry.sublist)
+                loadCatalog(selected.sublist)
             }
-            entry.url.isNotBlank() -> mutable.update {
-                it.copy(entry = entry, uri = null, prepared = null, catalogOpen = false, error = null, customization = Customization())
+            selected.url.isNotBlank() -> mutable.update {
+                require(CatalogSelection.supports(selected, it.model)) { "Image does not match the selected model" }
+                it.copy(entry = selected, uri = null, prepared = null, catalogOpen = false, error = null, customization = Customization())
             }
             else -> error("This catalog entry contains no supported image")
         }
     }
 
-    private fun loadCatalog(url: String) {
-        viewModelScope.launch {
-            mutable.update { it.copy(catalogBusy = true) }
+    private fun loadCatalog(url: String, root: Boolean = false) {
+        catalogJob?.cancel()
+        val generation = ++catalogGeneration
+        mutable.update { it.copy(catalogBusy = true, catalogQuery = "") }
+        catalogJob = viewModelScope.launch {
             try {
-                val entries = withContext(Dispatchers.IO) { repository.catalog(url) }
-                mutable.update { it.copy(entries = entries) }
+                val document = withContext(Dispatchers.IO) { repository.catalog(url) }
+                mutable.update { it.copy(entries = document.entries, models = if (root) document.models else it.models) }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { error(e.message ?: "Catalog unavailable") }
-            finally { mutable.update { it.copy(catalogBusy = false) } }
+            finally { if (generation == catalogGeneration) mutable.update { it.copy(catalogBusy = false) } }
         }
     }
 
@@ -128,7 +154,7 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
         prepareJob = viewModelScope.launch {
             try {
                 val image = withContext(Dispatchers.IO) {
-                    repository.prepare(selected.entry, selected.uri, selected.customization, selected.localFormat) { bytes -> mutable.update { it.copy(bytes = bytes) } }
+                    repository.prepare(selected.entry, selected.uri, selected.customization, selected.localFormat, selected.model) { bytes -> mutable.update { it.copy(bytes = bytes) } }
                 }
                 mutable.update { it.copy(prepared = image) }
             } catch (e: CancellationException) { throw e }

@@ -54,6 +54,13 @@ fun ImagerScreen(model: ImagerViewModel, pickImage: () -> Unit, selectTarget: (S
                     }
                 }
                 item {
+                    StepCard(stringResource(R.string.model_title)) {
+                        Text(state.model?.name ?: stringResource(R.string.model_all), style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(R.string.model_hint), style = MaterialTheme.typography.bodySmall)
+                        OutlinedButton(onClick = model::openModels, enabled = !locked, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.model_choose)) }
+                    }
+                }
+                item {
                     if (wide) Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
                         Box(Modifier.weight(1f)) { ImageCard(state, locked, model::openCatalog, pickImage, model::prepare, model::cancelPreparation, model::openConfiguration, model::forgetImage) }
                         Box(Modifier.weight(1f)) { StorageCard(state, locked, model::refresh, selectTarget) }
@@ -83,6 +90,7 @@ fun ImagerScreen(model: ImagerViewModel, pickImage: () -> Unit, selectTarget: (S
         }
     }
     if (state.catalogOpen) Catalog(model, state)
+    if (state.modelsOpen) Models(model, state)
     if (state.configurationOpen) CustomizationDialog(state.draft, state.draftFormat, state.draftSection, state.uri != null,
         connectAvailable = state.uri != null || state.entry?.capabilities?.contains("rpi_connect") == true,
         change = model::editConfiguration, changeSection = model::configurationSection,
@@ -155,16 +163,25 @@ fun ImagerScreen(model: ImagerViewModel, pickImage: () -> Unit, selectTarget: (S
 }
 
 @Composable private fun Catalog(model: ImagerViewModel, state: ScreenState) {
+    val entries = remember(state.entries, state.model, state.catalogQuery) { model.visibleEntries(state) }
     Dialog(onDismissRequest = model::closeCatalog, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize().safeDrawingPadding(), color = MaterialTheme.colorScheme.background) {
-            Column(Modifier.padding(16.dp)) {
+            Column(Modifier.padding(16.dp).imePadding()) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = model::backCatalog, enabled = !state.catalogBusy) { Text(stringResource(R.string.back)) }
                     TextButton(onClick = model::closeCatalog) { Text(stringResource(R.string.close)) }
                 }
+                Text(state.model?.name ?: stringResource(R.string.model_all), style = MaterialTheme.typography.titleMedium)
+                OutlinedTextField(value = state.catalogQuery, onValueChange = model::searchCatalog,
+                    label = { Text(stringResource(R.string.catalog_search)) }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth(), trailingIcon = {
+                        if (state.catalogQuery.isNotEmpty()) TextButton(onClick = { model.searchCatalog("") }) { Text(stringResource(R.string.search_clear)) }
+                    })
+                Text(stringResource(R.string.catalog_search_hint), style = MaterialTheme.typography.bodySmall)
                 if (state.catalogBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
-                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(state.entries) { entry ->
+                if (entries.isEmpty() && !state.catalogBusy) Text(stringResource(R.string.catalog_empty), Modifier.padding(vertical = 16.dp))
+                LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 12.dp)) {
+                    items(entries) { entry ->
                         Card(onClick = { model.selectEntry(entry) }, enabled = !state.catalogBusy, modifier = Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(entry.name, style = MaterialTheme.typography.titleMedium)
@@ -173,6 +190,41 @@ fun ImagerScreen(model: ImagerViewModel, pickImage: () -> Unit, selectTarget: (S
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable private fun Models(model: ImagerViewModel, state: ScreenState) {
+    Dialog(onDismissRequest = model::closeModels, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(Modifier.fillMaxSize().safeDrawingPadding(), color = MaterialTheme.colorScheme.background) {
+            Column(Modifier.padding(16.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.model_choose), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                    TextButton(onClick = model::closeModels) { Text(stringResource(R.string.close)) }
+                }
+                Text(stringResource(R.string.model_change_hint), style = MaterialTheme.typography.bodySmall)
+                if (state.catalogBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
+                LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 12.dp)) {
+                    item {
+                        ModelOption(stringResource(R.string.model_all), stringResource(R.string.model_all_hint), state.model == null, !state.catalogBusy) { model.selectModel(null) }
+                    }
+                    items(state.models) { item ->
+                        ModelOption(item.name, item.description, state.model == item, !state.catalogBusy) { model.selectModel(item) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable private fun ModelOption(name: String, description: String, selected: Boolean, enabled: Boolean, choose: () -> Unit) {
+    Card(onClick = choose, enabled = enabled, modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            RadioButton(selected = selected, onClick = null, enabled = enabled)
+            Column(Modifier.padding(start = 16.dp).weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(name, style = MaterialTheme.typography.titleMedium)
+                if (description.isNotBlank()) Text(description, style = MaterialTheme.typography.bodyMedium)
             }
         }
     }

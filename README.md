@@ -6,6 +6,8 @@ Unabhängige native Android-Portierung auf Basis des [Raspberry Pi Imager](https
 
 Unter [Releases](https://github.com/jtracht/rpi-imager-android/releases) die signierte `pi-imager-android.apk` laden. Android 8 oder neuer, USB-Host/OTG und ein USB-SD-Kartenleser oder USB-Stick mit SCSI/Bulk-Only-Transport sind erforderlich. Kein Root erforderlich. Interne SD-Steckplätze können über Androids Dateiauswahl nicht als Rohdatenträger beschrieben werden.
 
+Optional zuerst „Pi-Modell wählen“ öffnen. Die Modelle und Zuordnungen stammen aus dem offiziellen Katalog; „Alle Modelle“ hebt die Filterung auf. Ein Modellwechsel setzt Image-Auswahl und Sitzungseinstellungen zurück. Bereits zwischengespeicherte Image-Dateien werden durch „Image und Einstellungen löschen“ entfernt. Lokale Images werden nicht automatisch auf Modellkompatibilität geprüft.
+
 1. Betriebssystem aus dem offiziellen Katalog oder lokale IMG-/ISO-Datei auswählen. XZ, GZ und ZIP werden anhand ihrer Dateisignatur erkannt. Bei ZIP wird die erste IMG-/ISO-Datei verwendet.
 2. Optional „Ersten Start konfigurieren“ öffnen: Benutzerkonto, Hostname, Zeitzone, Tastaturlayout, WLAN, SSH, Connect und Hardware-Schnittstellen einstellen. Bei lokalen Images das tatsächlich unterstützte Einrichtungsformat auswählen; bei Katalog-Images wird `init_format` übernommen.
 3. Image vorbereiten. Das entpackte Image liegt im privaten App-Speicher; entsprechend viel freier Speicher ist erforderlich. Katalog-Images brauchen einen gültigen SHA-256-Wert. Die App prüft zuerst das Original, passt danach die FAT32-Bootpartition an und berechnet einen neuen SHA-256-Wert für das konfigurierte Image. Lokale Images erhalten einen eigenen SHA-256-Wert, jedoch keinen externen Herkunftsnachweis.
@@ -13,6 +15,12 @@ Unter [Releases](https://github.com/jtracht/rpi-imager-android/releases) die sig
 5. Ziel einschließlich LUN im Löschdialog kontrollieren und Schreiben bestätigen. Danach prüft die App jeden geschriebenen Sektor einschließlich der Auffüllbytes. Erst nach erfolgreicher Prüfung abziehen.
 
 Der Schreibvorgang läuft als Vordergrunddienst mit Benachrichtigung und Wake Lock weiter. Ein Abbruch, Prozessende, Neustart oder Abziehen hinterlässt eventuell einen unvollständigen Datenträger; es gibt keinen automatischen Neustart des Schreibvorgangs. Downloads laufen nur im App-Prozess und sind nicht fortsetzbar. Physische USB-Kompatibilität und TalkBack sind separat auf Geräten zu testen; CI allein bestätigt diese nicht.
+
+## Modellauswahl und Katalogsuche
+
+Die Modellauswahl liest `imager.devices`, `tags` und `matching_type` aus demselben Katalog wie die Betriebssysteme. Ein Image passt, wenn mindestens eines seiner `devices`-Tags mit dem Modell übereinstimmt. Bei `inclusive` bleiben zusätzlich Images ohne Geräteangabe sichtbar; bei `exclusive` werden sie ausgeblendet. Ein ausdrücklich leeres `devices`-Array passt zu keinem ausgewählten Modell. Inline-Kategorien werden rekursiv gefiltert, leere Kategorien entfernt. Remote-Kategorien ohne Geräteangaben bleiben bis zum Laden ihrer Inhalte erreichbar. Die Angaben des Katalogherausgebers sind keine Boot-Garantie. Vor der Vorbereitung wird die Modellzuordnung nochmals geprüft.
+
+Das Suchfeld berücksichtigt alle eingegebenen Wörter in Namen und Beschreibungen, unabhängig von Groß-/Kleinschreibung. Es durchsucht die aktuelle Kategorie und deren bereits enthaltene Unterkategorien; noch nicht geladene Remote-Inhalte werden nicht vorab heruntergeladen. Passende Unterkategorien behalten ihren Navigationspfad. Beim Betreten einer Kategorie wird die Suche geleert und deren vollständiger, zum Modell passender Inhalt angezeigt. Die Modellauswahl, Suche und Navigation überstehen Rotation, bleiben aber nur in der App-Sitzung erhalten.
 
 ## Vorkonfiguration ohne Root
 
@@ -82,6 +90,8 @@ python scripts/validate_customization.py
 Unter Windows `gradlew.bat` verwenden. Für einen signierten Release die Umgebungsvariablen `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` setzen und `assembleRelease` ausführen. Versionierung erfolgt über `ANDROID_VERSION_NAME` und `ANDROID_VERSION_CODE`; CI verwendet Sekunden seit dem 1. Januar 2024 UTC, gemeinsam für Tag- und Sync-Builds. Der unveränderte Gradle Wrapper ist mit Prüfsumme abgesichert.
 
 ## Prüfung und Screenshots
+
+Version 0.4.0: [Prüfbericht zu Modellauswahl und Suche](docs/VALIDATION-0.4.0.md), [Modellauswahl](docs/screenshots/model-picker-360.png), [Suche mit Android-Tastatur](docs/screenshots/catalog-keyboard-320.png).
 
 Connect-Nachweise für Version 0.3.0: [Prüfbericht](docs/VALIDATION-0.3.0.md), [Handy-Dialog](docs/screenshots/settings-connect-320.png), [Tablet-Dialog](docs/screenshots/settings-connect-840.png).
 
