@@ -1,0 +1,29 @@
+name: Android checks
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
+      - run: python3 scripts/prepare_upstream.py
+      - run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - run: bash gradlew testDebugUnitTest lintDebug assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pi-imager-debug
+          path: app/build/outputs/apk/debug/*.apk

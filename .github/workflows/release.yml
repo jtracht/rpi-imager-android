@@ -1,0 +1,88 @@
+name: Build and publish APK
+on:
+  push:
+    tags: ['**']
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build or retry
+        required: true
+        type: string
+permissions:
+  contents: write
+concurrency:
+  group: apk-release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+          submodules: true
+          fetch-depth: 0
+      - name: Resolve immutable release tag
+        env:
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          git check-ref-format "refs/tags/$RELEASE_TAG"
+          test "$(git rev-parse HEAD)" = "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")"
+          echo "ANDROID_VERSION_NAME=$RELEASE_TAG" >> "$GITHUB_ENV"
+          echo "ANDROID_VERSION_CODE=$((100 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+      - run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
+      - run: python3 scripts/prepare_upstream.py
+      - run: python3 -m unittest discover -s scripts -p 'test_*.py'
+      - name: Restore distribution signing key
+        env:
+          KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          test -n "$KEYSTORE" && test -n "$STORE_PASSWORD" && test -n "$ALIAS" && test -n "$KEY_PASSWORD"
+          printf '%s' "$KEYSTORE" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+      - name: Test and build signed APK
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: bash gradlew testDebugUnitTest lintRelease assembleRelease
+      - name: Verify and package APK
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk dist/pi-imager-android.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs dist/pi-imager-android.apk
+          cp upstream.properties dist/upstream.properties
+          git -C upstream archive --format=tar.gz -o "$GITHUB_WORKSPACE/dist/rpi-imager-upstream.tar.gz" HEAD
+          cd dist
+          sha256sum pi-imager-android.apk rpi-imager-upstream.tar.gz upstream.properties > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pi-imager-release
+          path: dist/*
+      - name: Publish GitHub release with APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --verify-tag --draft --title "Pi Imager Android $RELEASE_TAG" --notes-file RELEASE-NOTES.md
+          fi
+          gh release upload "$RELEASE_TAG" dist/* --clobber
+          gh release edit "$RELEASE_TAG" --draft=false
+      - name: Remove signing material
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks"

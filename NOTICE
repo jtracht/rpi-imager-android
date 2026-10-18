@@ -1,0 +1,12 @@
+Pi Imager Android
+Copyright 2026 Julian Tracht and contributors
+
+This independent Android adaptation tracks Raspberry Pi Imager.
+Raspberry Pi Imaging Utility: Copyright (C) 2020 Raspberry Pi Ltd.
+Upstream source and full attribution: upstream/license.txt (Apache-2.0 and third-party notices).
+The Android UI and USB implementation are separate from the Qt desktop program.
+
+Dependencies: AndroidX / Jetpack Compose (Apache-2.0), Kotlin and kotlinx.coroutines
+(Apache-2.0), libaums (Apache-2.0), XZ for Java (0BSD).
+Raspberry Pi is a trademark of Raspberry Pi Ltd. This project is not affiliated
+with or endorsed by Raspberry Pi Ltd.
