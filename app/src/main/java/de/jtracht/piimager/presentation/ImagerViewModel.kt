@@ -57,6 +57,7 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
         if (locked()) return
         val format = mutable.value.entry?.let { InitFormat.fromId(it.initFormat) } ?: localFormat
         settings.validate(format)
+        mutable.value.entry?.validateCustomization(settings)
         mutable.update { it.copy(customization = settings, localFormat = localFormat, prepared = null, error = null) }
     }
     fun forgetImage() {

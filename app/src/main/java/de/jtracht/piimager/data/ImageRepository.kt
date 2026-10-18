@@ -21,8 +21,13 @@ import javax.net.ssl.HttpsURLConnection
 data class OsEntry(
     val name: String, val description: String = "", val url: String = "",
     val sha256: String = "", val size: Long = 0, val sublist: String = "",
-    val children: List<OsEntry> = emptyList(), val initFormat: String = ""
-)
+    val children: List<OsEntry> = emptyList(), val initFormat: String = "",
+    val capabilities: Set<String> = emptySet()
+) {
+    fun validateCustomization(settings: Customization) {
+        require(!settings.enabled || !settings.connect || "rpi_connect" in capabilities) { "This catalog image does not advertise Raspberry Pi Connect support" }
+    }
+}
 
 class ImageRepository(private val context: Context) {
     fun rootUrl(): String = context.assets.open("upstream.json").bufferedReader().use {
@@ -48,7 +53,8 @@ class ImageRepository(private val context: Context) {
             val item = array.getJSONObject(index)
             OsEntry(item.getString("name"), item.optString("description"), item.optString("url"),
                 item.optString("extract_sha256"), item.optLong("extract_size"), item.optString("subitems_url"),
-                item.optJSONArray("subitems")?.let { parseCatalog(it, depth + 1) } ?: emptyList(), item.optString("init_format"))
+                item.optJSONArray("subitems")?.let { parseCatalog(it, depth + 1) } ?: emptyList(), item.optString("init_format"),
+                item.optJSONArray("capabilities")?.let { values -> (0 until values.length()).map { values.getString(it) }.toSet() } ?: emptySet())
         }
     }
 
@@ -77,6 +83,7 @@ class ImageRepository(private val context: Context) {
                         localFormat: InitFormat = InitFormat.NONE, checkpoint: (Long) -> Unit): PreparedImage {
         val format = entry?.let { InitFormat.fromId(it.initFormat) } ?: localFormat
         settings.validate(format)
+        entry?.validateCustomization(settings)
         val destination = File(context.filesDir, "prepared.img")
         val temporary = File(context.filesDir, "preparing.tmp")
         destination.delete()

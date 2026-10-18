@@ -9,7 +9,7 @@ class CustomizationTest {
     private fun text(payload: BootPayload, name: String) = requireNotNull(payload.files[name]).toString(Charsets.UTF_8)
 
     @Test fun exportSamplesForIndependentSyntaxChecks() {
-        val s = settings().copy(wifi = true, ssid = "Test: \" Wi-Fi", wifiPassword = "test'\"\u0024`123456", ssh = true, sshPasswordAuth = true, i2c = true, spi = true, oneWire = true)
+        val s = settings().copy(wifi = true, ssid = "Test: \" Wi-Fi", wifiPassword = "test'\"\u0024`123456", ssh = true, sshPasswordAuth = true, i2c = true, spi = true, oneWire = true, connect = true, connectKey = "rpuak_" + "A".repeat(24))
         for (format in InitFormat.entries.filter { it != InitFormat.NONE }) {
             val folder = java.io.File("build/customization-samples/${format.id}").apply { mkdirs() }
             CustomizationGenerator.generate(s, format).files.forEach { (name, contents) -> java.io.File(folder, name).writeBytes(contents) }

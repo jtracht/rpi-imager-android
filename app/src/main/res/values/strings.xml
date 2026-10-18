@@ -35,9 +35,9 @@
     <string name="loading">Loading…</string>
     <string name="permission_denied">USB access was denied. Select the device to try again.</string>
     <string name="failed">Operation failed: %1$s</string>
-    <string name="limitations">USB-OTG required · No root · Android 8+\nFirst-boot settings require a supported FAT32 boot image. Raspberry Pi Connect sign-in and secure boot are not available.</string>
+    <string name="limitations">USB-OTG required · No root · Android 8+\nFirst-boot settings require a supported FAT32 boot image. Connect setup uses an auth key. Secure boot is not available.</string>
     <string name="custom_title">First-boot settings</string>
-    <string name="custom_hint">Applied to the prepared image before writing. Account passwords are hashed; Wi-Fi credentials are written to the boot partition. Settings stay in this app session. Clear the image to remove its cached copy.</string>
+    <string name="custom_hint">Applied to the prepared image before writing. Account passwords are hashed; Wi-Fi credentials and Connect keys are written to the boot partition. Settings stay in this app session. Clear the image to remove its cached copy.</string>
     <string name="custom_enable">Configure this image</string>
     <string name="custom_save">Apply settings</string>
     <string name="custom_format">Detected first-boot format: %1$s</string>
@@ -72,4 +72,14 @@
     <string name="custom_button">Configure first boot</string>
     <string name="custom_summary">Configured: %1$s · user %2$s</string>
     <string name="clear_image">Clear image and settings</string>
+    <string name="custom_connect">Connect</string>
+    <string name="connect_reuse_hint">This image contains a single-use Connect key. For another Pi, create a new key and prepare the image again.</string>
+    <string name="connect_enable">Set up Raspberry Pi Connect</string>
+    <string name="connect_hint">Link the Pi to your Raspberry Pi Connect account at first boot. Create an auth key in your browser, then paste it here.</string>
+    <string name="connect_unavailable">This catalog image does not advertise Connect support. Choose a compatible Raspberry Pi OS image.</string>
+    <string name="connect_local_hint">For local images, Connect must already be installed with its sign-in service. The app does not install packages. Lite supports remote shell; screen sharing needs a Wayland desktop.</string>
+    <string name="connect_open">Open Connect account in browser</string>
+    <string name="connect_browser_error">No browser available. Open https://connect.raspberrypi.com/settings on another device.</string>
+    <string name="connect_key">Connect auth key (rpuak_ / rpoak_)</string>
+    <string name="connect_key_hint">Use a new key for each Pi. Personal keys expire after 6 hours; organisation keys use their chosen expiry. Boot with internet access before expiry. The key is readable in the prepared image and on its boot partition until consumed. Clear the image and settings after use.</string>
 </resources>

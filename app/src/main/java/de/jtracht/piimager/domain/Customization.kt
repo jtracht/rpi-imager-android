@@ -30,7 +30,9 @@ data class Customization(
     val passwordlessSudo: Boolean = false,
     val i2c: Boolean = false,
     val spi: Boolean = false,
-    val oneWire: Boolean = false
+    val oneWire: Boolean = false,
+    val connect: Boolean = false,
+    val connectKey: String = ""
 ) {
     fun keys() = publicKeys.lineSequence().map(String::trim).filter(String::isNotEmpty).toList()
 
@@ -55,6 +57,7 @@ data class Customization(
             keys().forEach(::validateKey)
         }
         require(!passwordlessSudo || password.isNotEmpty() || (ssh && keys().isNotEmpty())) { "An administrative account is required" }
+        if (connect) ConnectProvisioning.validateKey(connectKey)
     }
 
     companion object {
@@ -158,6 +161,7 @@ object CustomizationGenerator {
             val command = "printf '%s\\n' ${shell("${s.username} ALL=(ALL) NOPASSWD:ALL")} > ${shell(file)} && chmod 0440 ${shell(file)}"
             appendLine("  - [sh, -c, ${quoted(command)}]")
         }
+        if (s.connect) appendLine("  - [sh, -eu, -c, ${quoted(ConnectProvisioning.script(s))}]")
     }
 
     private fun network(s: Customization) = buildString {
@@ -181,6 +185,7 @@ object CustomizationGenerator {
         }
         appendLine("\n[locale]\nkeymap = ${quoted(s.keyboard)}\ntimezone = ${quoted(s.timezone)}")
         if (s.i2c || s.spi || s.oneWire) appendLine("\n[interfaces]\ni2c = ${s.i2c}\nspi = ${s.spi}\nonewire = ${s.oneWire}")
+        if (s.connect) appendLine("\n[connect]\nenabled = true\nmode = \"token\"\ntoken = ${quoted(s.connectKey)}")
     }
 
     private fun systemd(s: Customization, hash: String): String = buildString {
@@ -227,6 +232,7 @@ object CustomizationGenerator {
             // Remove the legacy image's blanket NOPASSWD rule for its default user.
             appendLine("rm -f /etc/sudoers.d/010_pi-nopasswd")
         }
+        if (s.connect) appendLine(ConnectProvisioning.script(s))
         appendLine("for BOOT in /boot /boot/firmware; do")
         appendLine("  if [ -f \"\u0024BOOT/firstrun.sh\" ]; then\n    sed -i 's| systemd.run=[^ ]*||g; s| systemd.run_success_action=[^ ]*||g; s| systemd.unit=kernel-command-line.target||g' \"\u0024BOOT/cmdline.txt\"\n    rm -f \"\u0024BOOT/firstrun.sh\"\n  fi\ndone\nsync")
     }

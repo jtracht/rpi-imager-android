@@ -84,6 +84,7 @@ fun ImagerScreen(model: ImagerViewModel, pickImage: () -> Unit, selectTarget: (S
     }
     if (state.catalogOpen) Catalog(model, state)
     if (state.configurationOpen) CustomizationDialog(state.draft, state.draftFormat, state.draftSection, state.uri != null,
+        connectAvailable = state.uri != null || state.entry?.capabilities?.contains("rpi_connect") == true,
         change = model::editConfiguration, changeSection = model::configurationSection,
         dismiss = model::closeConfiguration, save = model::configure)
     if (confirm) {
@@ -126,6 +127,7 @@ fun ImagerScreen(model: ImagerViewModel, pickImage: () -> Unit, selectTarget: (S
             TextButton(onClick = cancel) { Text(stringResource(R.string.cancel)) }
         } else if (state.prepared != null) {
             Text(stringResource(R.string.ready, size(state.prepared.file.length())), color = MaterialTheme.colorScheme.primary)
+            if (state.customization.enabled && state.customization.connect) Text(stringResource(R.string.connect_reuse_hint), style = MaterialTheme.typography.bodySmall)
         } else Button(onClick = prepare, enabled = !locked && (state.entry != null || state.uri != null), modifier = Modifier.fillMaxWidth()) {
             Text(stringResource(R.string.prepare))
         }

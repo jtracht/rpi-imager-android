@@ -23,7 +23,7 @@ class RealImageIntegrationTest {
         try {
             original.copyTo(output, overwrite = true)
             val before = linuxHash(output)
-            val payload = CustomizationGenerator.generate(Customization(enabled = true, hostname = "android-test-pi", username = "testuser", password = "test-only-password", wifi = true, ssid = "Test: \" Wi-Fi", wifiPassword = "test'\"\u0024`123456", ssh = true, sshPasswordAuth = true, i2c = true, spi = true, oneWire = true), format)
+            val payload = CustomizationGenerator.generate(Customization(enabled = true, hostname = "android-test-pi", username = "testuser", password = "test-only-password", wifi = true, ssid = "Test: \" Wi-Fi", wifiPassword = "test'\"\u0024`123456", ssh = true, sshPasswordAuth = true, i2c = true, spi = true, oneWire = true, connect = true, connectKey = "rpuak_" + "A".repeat(24)), format)
             BootImageEditor.apply(output, payload)
             assertEquals("Customization must never change the Linux root partition", before, linuxHash(output))
             System.getenv("PI_IMAGER_REAL_OUTPUT_DIR")?.let { folder ->

@@ -21,6 +21,14 @@ def main():
         assert user["user"]["name"] == "testuser"
         assert user["user"]["passwd"].startswith("$6$")
         assert user["ssh_pwauth"] is True
+        connect = next(command for command in user["runcmd"] if "CONNECT_DIR=" in command[-1])
+        assert connect[:4] == ["sh", "-eu", "-c", connect[-1]]
+        assert "rpuak_" + "A" * 24 in connect[-1]
+        assert 'chmod 600 "$CONNECT_DIR/auth.key"' in connect[-1]
+        script_path = samples / mode / "connect.sh"
+        script_path.write_text(connect[-1], encoding="utf-8")
+        shell = shutil.which("sh") or "C:/Program Files/Git/bin/sh.exe"
+        subprocess.run([shell, "-n", str(script_path)], check=True)
         assert network["network"]["ethernets"]["eth0"]["dhcp4"] is True
         assert network["network"]["wifis"]["wlan0"]["access-points"]['Test: " Wi-Fi']["password"] == "test'\"$`123456"
         print(f"{mode}: YAML structure, credentials encoding and wired DHCP passed")
@@ -31,6 +39,7 @@ def main():
     assert preseed["wlan"]["ssid"] == 'Test: " Wi-Fi'
     assert preseed["wlan"]["password"] == "test'\"$`123456"
     assert preseed["interfaces"] == {"i2c": True, "spi": True, "onewire": True}
+    assert preseed["connect"] == {"enabled": True, "mode": "token", "token": "rpuak_" + "A" * 24}
     print("rpi-preseed: TOML syntax, sections and credentials encoding passed")
     shell = shutil.which("sh") or "C:/Program Files/Git/bin/sh.exe"
     subprocess.run([shell, "-n", str(samples / "systemd/firstrun.sh")], check=True)

@@ -15,7 +15,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = providers.environmentVariable("ANDROID_VERSION_CODE").orElse("1").get().toInt()
-        versionName = providers.environmentVariable("ANDROID_VERSION_NAME").orElse("0.2.0").get()
+        versionName = providers.environmentVariable("ANDROID_VERSION_NAME").orElse("0.3.0").get()
         buildConfigField("String", "UPSTREAM_TAG", "\"${upstreamInfo.getProperty("tag")}\"")
         buildConfigField("String", "UPSTREAM_COMMIT", "\"${upstreamInfo.getProperty("commit")}\"")
     }

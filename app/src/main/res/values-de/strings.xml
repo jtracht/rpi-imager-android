@@ -35,9 +35,9 @@
     <string name="loading">Wird geladen…</string>
     <string name="permission_denied">USB-Zugriff wurde abgelehnt. Wähle das Gerät zum Wiederholen aus.</string>
     <string name="failed">Vorgang fehlgeschlagen: %1$s</string>
-    <string name="limitations">USB-OTG erforderlich · Ohne Root · Android 8+\nVorkonfiguration benötigt ein unterstütztes FAT32-Boot-Image. Raspberry-Pi-Connect-Anmeldung und Secure Boot sind nicht verfügbar.</string>
+    <string name="limitations">USB-OTG erforderlich · Ohne Root · Android 8+\nVorkonfiguration benötigt ein unterstütztes FAT32-Boot-Image. Connect wird über einen Auth-Schlüssel eingerichtet. Secure Boot ist nicht verfügbar.</string>
     <string name="custom_title">Ersten Start vorbereiten</string>
-    <string name="custom_hint">Die Einstellungen werden vor dem Schreiben ins Image übernommen. Benutzerpasswörter werden gehasht; WLAN-Zugangsdaten stehen auf der Bootpartition. Einstellungen gelten für diese App-Sitzung. Über „Image löschen“ entfernst du die zwischengespeicherte Kopie.</string>
+    <string name="custom_hint">Die Einstellungen werden vor dem Schreiben ins Image übernommen. Benutzerpasswörter werden gehasht; WLAN-Zugangsdaten und Connect-Schlüssel stehen auf der Bootpartition. Einstellungen gelten für diese App-Sitzung. Über „Image löschen“ entfernst du die zwischengespeicherte Kopie.</string>
     <string name="custom_enable">Dieses Image vorkonfigurieren</string>
     <string name="custom_save">Einstellungen übernehmen</string>
     <string name="custom_format">Erkanntes Einrichtungsformat: %1$s</string>
@@ -72,4 +72,14 @@
     <string name="custom_button">Ersten Start konfigurieren</string>
     <string name="custom_summary">Konfiguriert: %1$s · Benutzer %2$s</string>
     <string name="clear_image">Image und Einstellungen löschen</string>
+    <string name="custom_connect">Connect</string>
+    <string name="connect_reuse_hint">Dieses Image enthält einen Connect-Schlüssel zur einmaligen Verwendung. Für einen weiteren Pi einen neuen Schlüssel erstellen und das Image erneut vorbereiten.</string>
+    <string name="connect_enable">Raspberry Pi Connect einrichten</string>
+    <string name="connect_hint">Den Pi beim ersten Start mit deinem Raspberry-Pi-Connect-Konto verbinden. Erstelle im Browser einen Auth-Schlüssel und füge ihn hier ein.</string>
+    <string name="connect_unavailable">Dieses Katalog-Image weist keine Connect-Unterstützung aus. Wähle ein kompatibles Raspberry Pi OS.</string>
+    <string name="connect_local_hint">Bei lokalen Images muss Connect samt Anmeldedienst bereits installiert sein. Die App installiert keine Pakete. Lite unterstützt die Fernkonsole; Bildschirmfreigabe benötigt einen Wayland-Desktop.</string>
+    <string name="connect_open">Connect-Konto im Browser öffnen</string>
+    <string name="connect_browser_error">Kein Browser verfügbar. Öffne https://connect.raspberrypi.com/settings auf einem anderen Gerät.</string>
+    <string name="connect_key">Connect-Auth-Schlüssel (rpuak_ / rpoak_)</string>
+    <string name="connect_key_hint">Für jeden Pi einen neuen Schlüssel verwenden. Persönliche Schlüssel gelten 6 Stunden, Organisationsschlüssel bis zum gewählten Ablauf. Den Pi vorher mit Internetzugang starten. Im vorbereiteten Image und auf dessen Bootpartition ist der Schlüssel bis zur Verarbeitung lesbar. Image und Einstellungen anschließend löschen.</string>
 </resources>

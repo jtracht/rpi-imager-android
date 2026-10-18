@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.input.KeyboardType
@@ -19,10 +20,11 @@ import androidx.compose.ui.window.DialogProperties
 import de.jtracht.piimager.R
 import de.jtracht.piimager.domain.Customization
 import de.jtracht.piimager.domain.InitFormat
+import de.jtracht.piimager.domain.ConnectProvisioning
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun CustomizationDialog(settings: Customization, format: InitFormat, section: Int, local: Boolean,
+fun CustomizationDialog(settings: Customization, format: InitFormat, section: Int, local: Boolean, connectAvailable: Boolean,
                         change: (Customization, InitFormat) -> Unit, changeSection: (Int) -> Unit,
                         dismiss: () -> Unit, save: (Customization, InitFormat) -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
@@ -41,7 +43,7 @@ fun CustomizationDialog(settings: Customization, format: InitFormat, section: In
                             }
                             item {
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    listOf(R.string.custom_system, R.string.custom_wifi, R.string.custom_ssh, R.string.custom_interfaces).forEachIndexed { index, title ->
+                                    listOf(R.string.custom_system, R.string.custom_wifi, R.string.custom_ssh, R.string.custom_interfaces, R.string.custom_connect).forEachIndexed { index, title ->
                                         FilterChip(selected = section == index, onClick = { changeSection(index) }, label = { Text(stringResource(title)) })
                                     }
                                 }
@@ -53,6 +55,7 @@ fun CustomizationDialog(settings: Customization, format: InitFormat, section: In
                                         1 -> WifiSettings(settings) { change(it, format) }
                                         2 -> SshSettings(settings) { change(it, format) }
                                         3 -> InterfaceSettings(settings) { change(it, format) }
+                                        4 -> ConnectSettings(settings, local, connectAvailable) { change(it, format) }
                                     }
                                 }
                             }
@@ -68,6 +71,26 @@ fun CustomizationDialog(settings: Customization, format: InitFormat, section: In
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable private fun ConnectSettings(s: Customization, local: Boolean, available: Boolean, update: (Customization) -> Unit) {
+    val uriHandler = LocalUriHandler.current
+    var browserError by remember { mutableStateOf(false) }
+    Text(stringResource(if (available) R.string.connect_hint else R.string.connect_unavailable))
+    if (available) {
+        if (local) Text(stringResource(R.string.connect_local_hint), style = MaterialTheme.typography.bodySmall)
+        SettingSwitch(R.string.connect_enable, s.connect) { update(s.copy(connect = it, connectKey = if (it) s.connectKey else "")) }
+        if (s.connect) {
+            OutlinedButton(onClick = {
+                try { uriHandler.openUri(ConnectProvisioning.SETTINGS_URL); browserError = false }
+                catch (_: android.content.ActivityNotFoundException) { browserError = true }
+                catch (_: IllegalArgumentException) { browserError = true }
+            }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.connect_open)) }
+            if (browserError) Text(stringResource(R.string.connect_browser_error), color = MaterialTheme.colorScheme.error)
+            SettingField(R.string.connect_key, s.connectKey, secret = true) { update(s.copy(connectKey = it.trim())) }
+            Text(stringResource(R.string.connect_key_hint), style = MaterialTheme.typography.bodySmall)
         }
     }
 }
