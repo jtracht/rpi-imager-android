@@ -1,6 +1,6 @@
 # Connect-Vorkonfiguration: Prüfung am 18. Oktober 2026
 
-Release: `v0.3.0`. Upstream bleibt `v2.0.12`, Commit `84b03d96cd4c390ebe475a4b5db5735e5535e9a6`.
+Release: `v0.3.0`, App-Quellstand `8fb4bbf`. Upstream bleibt `v2.0.12`, Commit `84b03d96cd4c390ebe475a4b5db5735e5535e9a6`.
 
 ## Umfang
 
@@ -13,6 +13,7 @@ Persönliche und Organisations-Auth-Schlüssel aus dem offiziellen Connect-Brows
 - Die modifizierten echten Images zusätzlich mit `pyfatfs` unabhängig gelesen: Connect-Schlüssel vorhanden, Cloud-init mit PyYAML geparst, Legacy-Skript per POSIX-Shell auf Syntax geprüft. Es wurden ausschließlich synthetische, nicht gültige Testschlüssel verwendet.
 - Unabhängige CI-Prüfung parst beide Cloud-init-Varianten samt eingebettetem Connect-Skript und Preseed-TOML. Sowohl extrahierte Connect-Skripte als auch gesamter Legacy-First-Run bestehen `sh -n`; die Skripte werden nicht ausgeführt.
 - Vier bestehende Python-Sync-Tests bestanden. Debug-Build/Lint und signierter, mit R8 optimierter Release-Build/Lint bestanden.
+- [GitHub-CI](https://github.com/jtracht/rpi-imager-android/actions/runs/39162063066) und [Tag-Release-Pipeline](https://github.com/jtracht/rpi-imager-android/actions/runs/39162065738) erfolgreich. [Release v0.3.0](https://github.com/jtracht/rpi-imager-android/releases/tag/v0.3.0) veröffentlicht, APK und alle weiteren Anhänge erneut heruntergeladen und gegen `SHA256SUMS` geprüft. APK-Signatur identisch mit den Vorgängerversionen; veröffentlichte APK als Update installiert und kalt gestartet, `versionName=v0.3.0`, kein Crash-Log.
 
 ## Android-Emulator
 
