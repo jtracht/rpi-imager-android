@@ -8,6 +8,7 @@ App-Quellstand und Release-Tag: `0c93047`, `v0.2.0`. Upstream unverändert: `v2.
 - Vier Python-Tests der Release-Auswahl erfolgreich.
 - Unabhängige YAML- und TOML-Parser prüfen die generierten Cloud-init-/Preseed-Dateien, einschließlich Anführungszeichen, Backslashes und Sonderzeichen in Zugangsdaten. Der Systemd-First-Run wird mit `sh -n` syntaktisch geprüft und nicht ausgeführt. Diese Prüfung läuft in CI und vor jedem APK-Release.
 - Android Lint für Debug und Release, Debug-Build und signierter, mit R8 optimierter Release-Build erfolgreich. GitHub-CI für den App-Quellstand erfolgreich.
+- Tag-Pipeline für `v0.2.0` erfolgreich: APK, Upstream-Archiv, Metadaten und Prüfsummen am veröffentlichten GitHub-Release. Die veröffentlichte APK wurde erneut heruntergeladen, alle Dateiprüfsummen und dieselbe Signatur wie bei `v0.1.0` bestätigt; Installation als Update und Start im Emulator erfolgreich.
 - Dateisystemtests prüfen unter anderem MBR und GPT, GPT-Prüfsummen, obere/untere Partitionsgrenzen, zyklische FAT-Ketten, FAT-Spiegel, lange Dateinamen, Vergrößerung des Root-Verzeichnisses, Abbruch und Wechsel zwischen Einrichtungsverfahren.
 
 ## Offizielle Images
