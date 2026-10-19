@@ -86,7 +86,8 @@ class PreparationService : Service() {
                 withContext(NonCancellable + Dispatchers.Main.immediate) {
                     if (wakeLock.isHeld) wakeLock.release()
                     stopForeground(STOP_FOREGROUND_REMOVE)
-                    stopSelf(startId)
+                    // CANCEL is a newer start command; stop the single operation's service too.
+                    stopSelf()
                     job = null
                     mutable.value = result
                     notifications.notify(11, notification(result))
@@ -138,7 +139,11 @@ class PreparationService : Service() {
             val id = UUID.randomUUID().toString()
             pending = id to request
             mutable.value = PreparationState(busy = true)
-            try { context.startForegroundService(Intent(context, PreparationService::class.java).putExtra("request", id)) }
+            val start = Intent(context, PreparationService::class.java).putExtra("request", id)
+            // Extend the selected document's temporary read grant to the service lifetime.
+            // No persistable grant is taken; account/network credentials stay in RAM.
+            if (request.uri != null) start.setData(request.uri).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            try { context.startForegroundService(start) }
             catch (e: Exception) { pending = null; mutable.value = PreparationState(); throw e }
         }
         fun cancel(context: Context) { if (mutable.value.busy) context.startService(Intent(context, PreparationService::class.java).setAction(CANCEL)) }

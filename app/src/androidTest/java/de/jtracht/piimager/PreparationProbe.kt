@@ -22,6 +22,7 @@ class PreparationProbe : Instrumentation() {
             await("preparation started") { PreparationService.state.value.bytes > 0 }
             runOnMainSync { activity.finish() }
             await("preparation after Activity destruction", 45000) { !PreparationService.state.value.busy }
+            await("completed service stopped") { serviceStopped() }
             val result = requireNotNull(PreparationService.state.value.image) { PreparationService.state.value.error ?: "Missing prepared image" }
             check(result.file.length() == 64L * 1024 * 1024)
             val hash = MessageDigest.getInstance("SHA-256")
@@ -49,6 +50,7 @@ class PreparationProbe : Instrumentation() {
             await("second preparation started") { PreparationService.state.value.bytes > 0 }
             runOnMainSync { PreparationService.cancel(targetContext) }
             await("cancellation") { !PreparationService.state.value.busy }
+            await("cancelled service stopped") { serviceStopped() }
             check(PreparationService.state.value.image == null)
             check(!File(targetContext.filesDir, "preparing.tmp").exists())
             check(!File(targetContext.filesDir, "prepared.img").exists())
@@ -61,6 +63,9 @@ class PreparationProbe : Instrumentation() {
         }
     }
     private fun open(): Activity = startActivitySync(Intent(targetContext, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    @Suppress("DEPRECATION")
+    private fun serviceStopped() = targetContext.getSystemService(android.app.ActivityManager::class.java)
+        .getRunningServices(100).none { it.service.className == PreparationService::class.java.name }
     private fun hasText(node: android.view.accessibility.AccessibilityNodeInfo?, text: String, depth: Int = 0): Boolean {
         if (node == null || depth > 32) return false
         if (node.text?.toString() == text) return true
