@@ -7,15 +7,13 @@ import de.jtracht.piimager.domain.PreparedImage
 import de.jtracht.piimager.domain.Customization
 import de.jtracht.piimager.domain.CustomizationGenerator
 import de.jtracht.piimager.domain.InitFormat
+import de.jtracht.piimager.domain.ImageInput
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import org.json.JSONArray
 import org.json.JSONObject
-import org.tukaani.xz.XZInputStream
 import java.io.*
 import java.net.URL
-import java.util.zip.GZIPInputStream
-import java.util.zip.ZipInputStream
 import javax.net.ssl.HttpsURLConnection
 
 class ImageRepository(private val context: Context) {
@@ -99,7 +97,7 @@ class ImageRepository(private val context: Context) {
         try {
             val jobContext = currentCoroutineContext()
             val copy: suspend (InputStream) -> Unit = { original ->
-                unpack(original.buffered()).use { source ->
+                ImageInput.unpack(original.buffered()).use { source ->
                     FileOutputStream(temporary).use { output ->
                         val bytes = ByteArray(1024 * 1024)
                         var total = 0L
@@ -140,22 +138,4 @@ class ImageRepository(private val context: Context) {
         } finally { temporary.delete() }
     }
 
-    private fun unpack(input: BufferedInputStream): InputStream {
-        input.mark(8)
-        val magic = ByteArray(6)
-        val count = input.read(magic)
-        input.reset()
-        return when {
-            count >= 6 && magic.contentEquals(byteArrayOf(0xfd.toByte(), 0x37, 0x7a, 0x58, 0x5a, 0x00)) -> XZInputStream(input, 65536)
-            count >= 2 && magic[0] == 0x1f.toByte() && magic[1] == 0x8b.toByte() -> GZIPInputStream(input)
-            count >= 2 && magic[0] == 0x50.toByte() && magic[1] == 0x4b.toByte() -> {
-                val zip = ZipInputStream(input)
-                var item = zip.nextEntry
-                while (item != null && (item.isDirectory || !item.name.lowercase().let { it.endsWith(".img") || it.endsWith(".iso") })) item = zip.nextEntry
-                check(item != null) { "ZIP contains no IMG or ISO file" }
-                zip
-            }
-            else -> input
-        }
-    }
 }

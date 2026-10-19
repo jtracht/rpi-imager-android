@@ -2,6 +2,8 @@ Native Android adaptation of Raspberry Pi Imager. Requires Android 8+ and a USB-
 
 New in v0.5.0: foreground image preparation with notification, cancellation and wake lock. Downloading, unpacking, checksums and first-boot configuration continue when the Activity closes. Reopened Activities in the same process reattach to progress/results. Account and Wi-Fi credentials remain session-only; no secrets in job storage or service Intents. Hashing is cancellable between chunks. Android foreground-service timeouts are handled; process death, force-stop or reboot requires restarting preparation. Downloads are not resumable. USB writing always requires separate confirmation.
 
+Also fixes XZ decoding of official OS images using a 64-MiB dictionary (the old limit omitted decoder overhead), and archive signature detection on short network reads.
+
 - Adaptive phone/tablet interface; German and English; light/dark theme.
 - Official OS catalog, local images, XZ/GZip/ZIP decompression.
 - Catalog SHA-256 validation before writing; complete USB read-back verification.
