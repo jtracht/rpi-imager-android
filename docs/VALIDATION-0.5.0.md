@@ -1,6 +1,6 @@
 # Hintergrund-Vorbereitung: Prüfung am 19. Oktober 2026
 
-Zielrelease: `v0.5.0`. Upstream bleibt `v2.0.12`, Commit `84b03d96cd4c390ebe475a4b5db5735e5535e9a6`.
+Release: `v0.5.0`, App-Quellstand `c88d79f`. Upstream bleibt `v2.0.12`, Commit `84b03d96cd4c390ebe475a4b5db5735e5535e9a6`.
 
 ## Umfang
 
@@ -27,6 +27,10 @@ Ein echter offizieller OS-Download zeigte, dass das bisherige XZ-Limit von 65536
 - Vollständiges, bereits anhand des offiziellen Katalogs verifiziertes `2026-10-06-raspios-trixie-arm64-lite.img.xz` (550466056 Bytes) anschließend über Androids Dokumentauswahl importiert und im Hintergrund vorbereitet. Ergebnis: 3078619136 Bytes, SHA-256 `b8a393dc1c3701450b5fffbfe74368a98fb6eab7415ce456cc0cead886ea8780`, identisch zum Katalog. Androids Fertig-Benachrichtigung und „Image bereit · 3,08 GB“ in der App bestätigt. [Benachrichtigung](screenshots/preparation-background.png), [fertiges offizielles Image](screenshots/preparation-real-image-ready.png).
 - Die App selbst arbeitete dabei unter ihrer normalen Android-Benutzerkennung. Root wurde ausschließlich nach Abschluss zur unabhängigen SHA-256-Prüfung der privaten Image-Datei im Testemulator verwendet. Kein USB-Datenträger wurde beschrieben.
 
-## Grenzen der Prüfung
+## Veröffentlichungsprüfung
+
+[CI mit Android-Emulator](https://github.com/jtracht/rpi-imager-android/actions/runs/39201745693) und [Tag-Release-Pipeline](https://github.com/jtracht/rpi-imager-android/actions/runs/39201748951) erfolgreich. [Release v0.5.0](https://github.com/jtracht/rpi-imager-android/releases/tag/v0.5.0) mit signierter APK und allen Quell-/Prüfsummenanhängen veröffentlicht. Sämtliche Anhänge erneut heruntergeladen und gegen `SHA256SUMS` geprüft. Die APK besitzt denselben Signaturschlüssel wie die Vorgänger, ließ sich direkt über die veröffentlichte Version 0.4.0 installieren und kalt starten (`versionName=v0.5.0`); kein Crash-Log. Das Manifest der veröffentlichten APK enthält den Vorbereitungsdienst und keine Test-Provider oder Instrumentierungs-Komponenten. Der finale Emulator-Test prüft zusätzlich ausdrücklich, dass der Dienst nach Fertigstellung und nach einem Abbruch vollständig beendet ist.
+
+## Verbleibende Grenzen
 
 Kein Fortsetzen unterbrochener Downloads. Android darf Dienste beenden oder begrenzen; Geräte-Neustart, Force-Stop und Prozessverlust erfordern erneute Vorbereitung. Ein Ergebnis wird nach Prozess-Neustart nicht automatisch aus dem App-Speicher rekonstruiert. Bei blockierenden Netzwerkaufrufen kann Abbruch bis zum Verbindungs-Zeitlimit dauern. Physische USB-Kompatibilität, Pi-Erststart, echte Connect-Verknüpfung und TalkBack bleiben separate Hardware-/Kontotests. Secure Boot und Fastboot sind weiterhin nicht portiert.
