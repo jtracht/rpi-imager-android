@@ -27,8 +27,6 @@ Signierte Release-Vorschau als Update auf Android 15 / API 35 installiert, kein 
 
 Screenshots: [Modellauswahl 360 dp](screenshots/model-picker-360.png), [Pi-2-Filter 320 dp](screenshots/catalog-filter-320.png), [Suche mit Tastatur 320 dp](screenshots/catalog-keyboard-320.png), [Suche 840 dp](screenshots/catalog-search-840.png). Die allgemeinen Breiten-Screenshots wurden ebenfalls aktualisiert. Es wurde kein USB-Datenträger beschrieben.
 
-## Grenzen
-
 ## Veröffentlichungsprüfung am 19. Oktober 2026
 
 [GitHub-CI](https://github.com/jtracht/rpi-imager-android/actions/runs/39163455408) und [Tag-Release-Pipeline](https://github.com/jtracht/rpi-imager-android/actions/runs/39163457507) erfolgreich. [Release v0.4.0](https://github.com/jtracht/rpi-imager-android/releases/tag/v0.4.0) mit signierter APK, Upstream-Archiv, Metadaten und Prüfsummen veröffentlicht. Alle Anhänge erneut heruntergeladen und gegen `SHA256SUMS` geprüft. APK-Signatur identisch mit den Vorgängerversionen; veröffentlichte APK als Update installiert und kalt gestartet, `versionName=v0.4.0`, kein Eintrag im Crash-Log.
