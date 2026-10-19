@@ -67,6 +67,7 @@ class ImageRepository(private val context: Context) {
     private suspend fun <T> remote(address: String, consume: suspend (InputStream) -> T): T {
         var url = URL(address)
         repeat(6) {
+            currentCoroutineContext().ensureActive()
             require(url.protocol == "https" && url.userInfo == null) { "Only HTTPS URLs are supported" }
             val connection = url.openConnection() as HttpsURLConnection
             connection.connectTimeout = 20000
@@ -74,6 +75,7 @@ class ImageRepository(private val context: Context) {
             connection.instanceFollowRedirects = false
             try {
                 val status = connection.responseCode
+                currentCoroutineContext().ensureActive()
                 if (status in listOf(301, 302, 303, 307, 308)) {
                     url = URL(url, connection.getHeaderField("Location") ?: error("Missing redirect"))
                 } else {
@@ -124,14 +126,15 @@ class ImageRepository(private val context: Context) {
                 (context.contentResolver.openInputStream(uri) ?: error("Cannot open image")).use { copy(it) }
             }
             check(temporary.length() > 0) { "Empty image" }
-            var hash = Imaging.digest(temporary.inputStream())
+            var hash = Imaging.digest(temporary.inputStream()) { jobContext.ensureActive() }
             if (entry != null) check(hash.equals(entry.sha256, ignoreCase = true)) { "SHA-256 mismatch" }
             if (settings.enabled) {
                 jobContext.ensureActive()
                 val payload = CustomizationGenerator.generate(settings, format)
                 BootImageEditor.apply(temporary, payload) { jobContext.ensureActive() }
-                hash = Imaging.digest(temporary.inputStream())
+                hash = Imaging.digest(temporary.inputStream()) { jobContext.ensureActive() }
             }
+            jobContext.ensureActive()
             check(temporary.renameTo(destination)) { "Cannot store prepared image" }
             return PreparedImage(destination, entry?.name ?: uri?.lastPathSegment?.substringAfterLast('/') ?: "Image", hash)
         } finally { temporary.delete() }

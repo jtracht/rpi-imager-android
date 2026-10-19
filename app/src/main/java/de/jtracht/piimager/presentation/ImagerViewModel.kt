@@ -32,12 +32,20 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
     val usb = UsbStorage(app)
     private val mutable = MutableStateFlow(ScreenState())
     val state = mutable.asStateFlow()
-    private var prepareJob: Job? = null
+    private var clearingImage = false
     private val history = ArrayDeque<List<OsEntry>>()
     private var catalogJob: Job? = null
     private var catalogGeneration = 0
 
-    init { refresh() }
+    init {
+        viewModelScope.launch {
+            PreparationService.state.collect { progress ->
+                mutable.update { it.copy(preparing = progress.busy || clearingImage, bytes = progress.bytes,
+                    prepared = progress.image, error = progress.error ?: it.error) }
+            }
+        }
+        refresh()
+    }
     fun refresh() {
         if (ImagingService.state.value.busy) return
         val devices = usb.devices()
@@ -45,7 +53,7 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun error(message: String) { mutable.update { it.copy(error = message) } }
-    fun clearError() { mutable.update { it.copy(error = null) } }
+    fun clearError() { PreparationService.dismissError(); mutable.update { it.copy(error = null) } }
     fun openConfiguration() {
         if (locked()) return
         mutable.update { it.copy(configurationOpen = true, draft = it.customization,
@@ -62,24 +70,30 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
         val format = mutable.value.entry?.let { InitFormat.fromId(it.initFormat) } ?: localFormat
         settings.validate(format)
         mutable.value.entry?.validateCustomization(settings)
+        PreparationService.clearResult()
         mutable.update { it.copy(customization = settings, localFormat = localFormat, prepared = null, error = null) }
     }
     fun forgetImage() {
         if (locked()) return
+        clearingImage = true
+        PreparationService.clearResult()
         mutable.update { it.copy(prepared = null, entry = null, uri = null, customization = Customization(), draft = Customization(), configurationOpen = false, preparing = true, bytes = 0) }
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    val file = java.io.File(getApplication<Application>().filesDir, "prepared.img")
-                    check(!file.exists() || file.delete()) { "Cannot remove prepared image" }
+                    for (name in listOf("prepared.img", "preparing.tmp")) {
+                        val file = java.io.File(getApplication<Application>().filesDir, name)
+                        check(!file.exists() || file.delete()) { "Cannot remove prepared image" }
+                    }
                 }
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) { error(e.message ?: "Cannot remove image") }
-            finally { mutable.update { it.copy(preparing = false) } }
+            finally { clearingImage = false; mutable.update { it.copy(preparing = PreparationService.state.value.busy) } }
         }
     }
     fun selectLocal(uri: Uri) {
         if (locked()) return
+        PreparationService.clearResult()
         mutable.update { it.copy(uri = uri, entry = null, prepared = null, error = null, localFormat = InitFormat.NONE, customization = Customization()) }
     }
 
@@ -93,6 +107,7 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
         if (locked() || mutable.value.catalogBusy) return
         if (model == mutable.value.model) { closeModels(); return }
         history.clear()
+        PreparationService.clearResult()
         // A board change invalidates both the image choice and its session-only credentials.
         mutable.update { it.copy(model = model, modelsOpen = false, entry = null, uri = null,
             prepared = null, customization = Customization(), draft = Customization(), configurationOpen = false,
@@ -124,9 +139,10 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
                 history.addLast(mutable.value.entries)
                 loadCatalog(selected.sublist)
             }
-            selected.url.isNotBlank() -> mutable.update {
-                require(CatalogSelection.supports(selected, it.model)) { "Image does not match the selected model" }
-                it.copy(entry = selected, uri = null, prepared = null, catalogOpen = false, error = null, customization = Customization())
+            selected.url.isNotBlank() -> {
+                require(CatalogSelection.supports(selected, mutable.value.model)) { "Image does not match the selected model" }
+                PreparationService.clearResult()
+                mutable.update { it.copy(entry = selected, uri = null, prepared = null, catalogOpen = false, error = null, customization = Customization()) }
             }
             else -> error("This catalog entry contains no supported image")
         }
@@ -150,19 +166,12 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
         if (locked()) return
         val selected = mutable.value
         if (selected.entry == null && selected.uri == null) return
-        mutable.update { it.copy(preparing = true, prepared = null, bytes = 0, error = null) }
-        prepareJob = viewModelScope.launch {
-            try {
-                val image = withContext(Dispatchers.IO) {
-                    repository.prepare(selected.entry, selected.uri, selected.customization, selected.localFormat, selected.model) { bytes -> mutable.update { it.copy(bytes = bytes) } }
-                }
-                mutable.update { it.copy(prepared = image) }
-            } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { error(e.message ?: "Image preparation failed") }
-            finally { mutable.update { it.copy(preparing = false) } }
-        }
+        try {
+            PreparationService.begin(getApplication(), PreparationRequest(selected.entry, selected.uri, selected.customization, selected.localFormat, selected.model))
+            mutable.update { it.copy(preparing = true, prepared = null, bytes = 0, error = null) }
+        } catch (e: Exception) { error(e.message ?: "Cannot start image preparation") }
     }
-    fun cancelPreparation() { prepareJob?.cancel() }
+    fun cancelPreparation() { PreparationService.cancel(getApplication()) }
 
     fun probe(storage: Storage) {
         if (locked()) return
@@ -194,5 +203,5 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun locked() = mutable.value.preparing || mutable.value.probing || ImagingService.state.value.busy
+    private fun locked() = mutable.value.preparing || mutable.value.probing || ImagingService.state.value.busy || PreparationService.state.value.busy
 }

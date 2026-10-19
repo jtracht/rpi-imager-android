@@ -30,6 +30,7 @@ class ImagingService : Service() {
             return START_NOT_STICKY
         }
         if (job?.isActive == true) return START_NOT_STICKY
+        if (PreparationService.state.value.busy) { stopSelf(startId); return START_NOT_STICKY }
         val notifications = getSystemService(NotificationManager::class.java)
         notifications.createNotificationChannel(NotificationChannel(CHANNEL, getString(R.string.channel), NotificationManager.IMPORTANCE_LOW))
         mutable.value = WriteState(busy = true, phase = R.string.writing)
@@ -42,7 +43,7 @@ class ImagingService : Service() {
                 val request = requireNotNull(intent)
                 val target = Storage(requireNotNull(request.getStringExtra("id")), "USB", request.getIntExtra("vendor", -1), request.getIntExtra("product", -1), lun = request.getIntExtra("lun", 0))
                 val file = File(filesDir, "prepared.img")
-                check(Imaging.digest(file.inputStream()) == request.getStringExtra("sha256")) { "Prepared image changed" }
+                check(Imaging.digest(file.inputStream()) { ensureActive() } == request.getStringExtra("sha256")) { "Prepared image changed" }
                 ensureActive()
                 UsbStorage(this@ImagingService).open(target).use { device ->
                     check(device.blocks * device.blockSize == request.getLongExtra("capacity", -1)) { "USB capacity changed; select the device again" }

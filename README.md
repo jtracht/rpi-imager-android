@@ -14,7 +14,15 @@ Optional zuerst „Pi-Modell wählen“ öffnen. Die Modelle und Zuordnungen sta
 4. Datenträger in den Android-Speichereinstellungen auswerfen, angeschlossen lassen und in der App USB-Zugriff erlauben. Bei Kartenlesern mit mehreren Speichereinheiten werden die bestückten LUNs einzeln mit Kapazität angezeigt.
 5. Ziel einschließlich LUN im Löschdialog kontrollieren und Schreiben bestätigen. Danach prüft die App jeden geschriebenen Sektor einschließlich der Auffüllbytes. Erst nach erfolgreicher Prüfung abziehen.
 
-Der Schreibvorgang läuft als Vordergrunddienst mit Benachrichtigung und Wake Lock weiter. Ein Abbruch, Prozessende, Neustart oder Abziehen hinterlässt eventuell einen unvollständigen Datenträger; es gibt keinen automatischen Neustart des Schreibvorgangs. Downloads laufen nur im App-Prozess und sind nicht fortsetzbar. Physische USB-Kompatibilität und TalkBack sind separat auf Geräten zu testen; CI allein bestätigt diese nicht.
+Vorbereitung und USB-Schreiben laufen als getrennte Vordergrunddienste mit Benachrichtigung und Wake Lock weiter, wenn die App-Ansicht verlassen wird. Ein Abbruch, Prozessende, Neustart oder Abziehen während des Schreibens hinterlässt eventuell einen unvollständigen Datenträger; es gibt keinen automatischen Neustart des Schreibvorgangs. Downloads sind weiterhin nicht fortsetzbar. Physische USB-Kompatibilität und TalkBack sind separat auf Geräten zu testen; CI allein bestätigt diese nicht.
+
+## Vorbereitung im Hintergrund
+
+„Image herunterladen / vorbereiten“ startet einen `dataSync`-Vordergrunddienst für Download, Entpacken, Prüfsumme und Vorkonfiguration. Er arbeitet unabhängig von der geöffneten Activity. Die Benachrichtigung zeigt die entpackte Datenmenge, öffnet die App und bietet einen Abbruchknopf. Eine neue Ansicht im selben App-Prozess übernimmt Fortschritt oder fertiges Image. Auf Android 13+ wird die Benachrichtigungsberechtigung angefragt; auch bei Ablehnung bleibt der Dienst an Androids Regeln gebunden.
+
+Der Auftrag und sämtliche Zugangsdaten bleiben nur im Arbeitsspeicher. Der Start-Intent enthält ausschließlich eine zufällige Auftragskennung. Keine Passwörter in gespeicherten Jobs, Bundles oder Einstellungen. Nach Prozessende, erzwungenem Beenden, Geräte-Neustart oder Android-Zeitlimit muss die Vorbereitung erneut gestartet werden. Ein fertiges Image und seine Prüfsumme werden nicht nach einem Prozess-Neustart automatisch wiederhergestellt. Android 15+ begrenzt `dataSync`-Dienste im Hintergrund; die App stoppt bei `onTimeout` sofort den Dienst und meldet die Unterbrechung. Siehe [Android-Dokumentation](https://developer.android.com/develop/background-work/services/fgs/timeout).
+
+Abbrechen prüft auch während großer Prüfsummenberechnungen regelmäßig auf Unterbrechung. Ein bereits blockierter Netzwerkzugriff kann erst nach Rückkehr oder Verbindungs-Zeitlimit reagieren. Temporäre Dateien werden beim kontrollierten Abbruch entfernt; nach einem harten Prozessende lassen sich auch übrig gebliebene temporäre Dateien mit „Image und Einstellungen löschen“ entfernen. Vorbereitung und USB-Schreiben werden gegenseitig gesperrt; eine fertige Vorbereitung startet niemals selbstständig einen Schreibvorgang.
 
 ## Modellauswahl und Katalogsuche
 
@@ -90,6 +98,8 @@ python scripts/validate_customization.py
 Unter Windows `gradlew.bat` verwenden. Für einen signierten Release die Umgebungsvariablen `ANDROID_KEYSTORE_PATH`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` setzen und `assembleRelease` ausführen. Versionierung erfolgt über `ANDROID_VERSION_NAME` und `ANDROID_VERSION_CODE`; CI verwendet Sekunden seit dem 1. Januar 2024 UTC, gemeinsam für Tag- und Sync-Builds. Der unveränderte Gradle Wrapper ist mit Prüfsumme abgesichert.
 
 ## Prüfung und Screenshots
+
+Version 0.5.0: [Prüfbericht zum Hintergrunddienst](docs/VALIDATION-0.5.0.md). Die CI enthält zusätzlich einen echten Android-Emulator-Test für Activity-Wechsel, Prüfsumme und Abbruch.
 
 Version 0.4.0: [Prüfbericht zu Modellauswahl und Suche](docs/VALIDATION-0.4.0.md), [Modellauswahl](docs/screenshots/model-picker-360.png), [Suche mit Android-Tastatur](docs/screenshots/catalog-keyboard-320.png).
 

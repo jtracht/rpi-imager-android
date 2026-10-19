@@ -1,4 +1,11 @@
 <resources>
+    <string name="preparation_channel">Image vorbereiten</string>
+    <string name="preparation_notification">Image wird vorbereitet · %1$s entpackt</string>
+    <string name="preparation_background">Die Vorbereitung läuft weiter, wenn du die App verlässt. Abbrechen ist über die Benachrichtigung möglich.</string>
+    <string name="preparation_ready">Image vorbereitet und geprüft. In der App einen USB-Zielspeicher auswählen.</string>
+    <string name="preparation_cancelled">Image-Vorbereitung abgebrochen.</string>
+    <string name="preparation_interrupted">Vorbereitung unterbrochen. Image erneut auswählen und starten.</string>
+    <string name="preparation_timeout">Android hat die Vorbereitung wegen seines Hintergrund-Zeitlimits beendet. App öffnen und erneut starten.</string>
     <string name="model_title">Raspberry Pi</string>
     <string name="model_choose">Pi-Modell wählen</string>
     <string name="model_all">Alle Modelle</string>

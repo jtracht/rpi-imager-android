@@ -7,6 +7,49 @@ on:
 permissions:
   contents: read
 jobs:
+  preparation-emulator:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+          log-accepted-android-sdk-licenses: false
+      - uses: gradle/actions/setup-gradle@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: sdkmanager 'platforms;android-36' 'build-tools;35.0.0'
+      - run: python3 scripts/prepare_upstream.py
+      - run: bash gradlew assembleDebug assembleDebugAndroidTest
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: reactivecircus/android-emulator-runner@4c44018e59b437e86cdfc41da381398f93ed8808 # v2
+        with:
+          api-level: 35
+          target: default
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            adb -s emulator-5554 install app/build/outputs/apk/debug/app-debug.apk
+            adb -s emulator-5554 install app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+            python3 scripts/emulator_preparation.py "$ANDROID_HOME/platform-tools/adb" emulator-5554
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: preparation-emulator-report
+          path: app/build/reports/preparation-probe/
   check:
     runs-on: ubuntu-latest
     steps:

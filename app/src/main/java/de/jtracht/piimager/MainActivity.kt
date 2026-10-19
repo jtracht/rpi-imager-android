@@ -47,6 +47,10 @@ class MainActivity : ComponentActivity() {
             val notifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
             ImagerTheme {
                 ImagerScreen(model,
+                    prepareImage = {
+                        if (Build.VERSION.SDK_INT >= 33) notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        model.prepare()
+                    },
                     pickImage = { picker.launch(arrayOf("*/*")) },
                     selectTarget = ::selectTarget,
                     startWrite = { target, hash ->

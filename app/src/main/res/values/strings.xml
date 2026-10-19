@@ -1,4 +1,11 @@
 <resources>
+    <string name="preparation_channel">Prepare image</string>
+    <string name="preparation_notification">Preparing image · %1$s unpacked</string>
+    <string name="preparation_background">Preparation continues while you leave the app. You can cancel from the notification.</string>
+    <string name="preparation_ready">Image prepared and checked. Return to the app to select a USB target.</string>
+    <string name="preparation_cancelled">Image preparation cancelled.</string>
+    <string name="preparation_interrupted">Preparation interrupted. Select the image and start again.</string>
+    <string name="preparation_timeout">Android stopped preparation at its background time limit. Return to the app and start again.</string>
     <string name="model_title">Raspberry Pi</string>
     <string name="model_choose">Choose Pi model</string>
     <string name="model_all">All models</string>

@@ -1,0 +1,7 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <!-- Synthetic, throttled test data only; never packaged in the distribution APK. -->
+        <provider android:name="de.jtracht.piimager.SlowImageProvider"
+            android:authorities="de.jtracht.piimager.test.fixture" android:exported="true" />
+    </application>
+</manifest>

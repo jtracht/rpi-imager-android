@@ -14,8 +14,9 @@ android {
         applicationId = "de.jtracht.piimager"
         minSdk = 26
         targetSdk = 36
+        testInstrumentationRunner = "de.jtracht.piimager.PreparationProbe"
         versionCode = providers.environmentVariable("ANDROID_VERSION_CODE").orElse("1").get().toInt()
-        versionName = providers.environmentVariable("ANDROID_VERSION_NAME").orElse("0.4.0").get()
+        versionName = providers.environmentVariable("ANDROID_VERSION_NAME").orElse("0.5.0").get()
         buildConfigField("String", "UPSTREAM_TAG", "\"${upstreamInfo.getProperty("tag")}\"")
         buildConfigField("String", "UPSTREAM_COMMIT", "\"${upstreamInfo.getProperty("commit")}\"")
     }

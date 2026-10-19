@@ -35,7 +35,7 @@ private val DarkColors = darkColorScheme(primary = Color(0xFFFFB1C4), secondary 
 }
 
 @Composable
-fun ImagerScreen(model: ImagerViewModel, pickImage: () -> Unit, selectTarget: (Storage) -> Unit,
+fun ImagerScreen(model: ImagerViewModel, prepareImage: () -> Unit, pickImage: () -> Unit, selectTarget: (Storage) -> Unit,
                  startWrite: (Storage, String) -> Unit, cancelWrite: () -> Unit) {
     val state by model.state.collectAsStateWithLifecycle()
     val write by ImagingService.state.collectAsStateWithLifecycle()
@@ -62,10 +62,10 @@ fun ImagerScreen(model: ImagerViewModel, pickImage: () -> Unit, selectTarget: (S
                 }
                 item {
                     if (wide) Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
-                        Box(Modifier.weight(1f)) { ImageCard(state, locked, model::openCatalog, pickImage, model::prepare, model::cancelPreparation, model::openConfiguration, model::forgetImage) }
+                        Box(Modifier.weight(1f)) { ImageCard(state, locked, model::openCatalog, pickImage, prepareImage, model::cancelPreparation, model::openConfiguration, model::forgetImage) }
                         Box(Modifier.weight(1f)) { StorageCard(state, locked, model::refresh, selectTarget) }
                     } else Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                        ImageCard(state, locked, model::openCatalog, pickImage, model::prepare, model::cancelPreparation, model::openConfiguration, model::forgetImage)
+                        ImageCard(state, locked, model::openCatalog, pickImage, prepareImage, model::cancelPreparation, model::openConfiguration, model::forgetImage)
                         StorageCard(state, locked, model::refresh, selectTarget)
                     }
                 }
@@ -122,6 +122,7 @@ fun ImagerScreen(model: ImagerViewModel, pickImage: () -> Unit, selectTarget: (S
     StepCard(stringResource(R.string.image_step)) {
         state.entry?.let { Text(it.name, style = MaterialTheme.typography.titleMedium); Text(it.description) }
         if (state.uri != null) Text(stringResource(R.string.local_selected))
+        if (state.entry == null && state.uri == null) state.prepared?.let { Text(it.name, style = MaterialTheme.typography.titleMedium) }
         OutlinedButton(onClick = catalog, enabled = !locked, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.catalog)) }
         OutlinedButton(onClick = pick, enabled = !locked, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.local_image)) }
         Text(stringResource(R.string.image_formats), style = MaterialTheme.typography.bodySmall)
@@ -132,6 +133,7 @@ fun ImagerScreen(model: ImagerViewModel, pickImage: () -> Unit, selectTarget: (S
         if (state.preparing) {
             LinearProgressIndicator(Modifier.fillMaxWidth())
             Text("${stringResource(R.string.preparing)} ${size(state.bytes)}")
+            Text(stringResource(R.string.preparation_background), style = MaterialTheme.typography.bodySmall)
             TextButton(onClick = cancel) { Text(stringResource(R.string.cancel)) }
         } else if (state.prepared != null) {
             Text(stringResource(R.string.ready, size(state.prepared.file.length())), color = MaterialTheme.colorScheme.primary)

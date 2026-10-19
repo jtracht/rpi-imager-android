@@ -1,6 +1,6 @@
 Native Android adaptation of Raspberry Pi Imager. Requires Android 8+ and a USB-OTG mass-storage reader (SCSI/Bulk-Only). Independent project, not an official Raspberry Pi product.
 
-New in v0.4.0: native Raspberry Pi model selection and OS search. Models and compatibility tags come from the official catalog. Inclusive/exclusive board matching filters nested categories; search matches names and descriptions while preserving navigation. Changing the model clears the previous image choice and first-boot settings. Local-image compatibility still needs to be checked by the user. Model selection and search survive rotation within the running app session.
+New in v0.5.0: foreground image preparation with notification, cancellation and wake lock. Downloading, unpacking, checksums and first-boot configuration continue when the Activity closes. Reopened Activities in the same process reattach to progress/results. Account and Wi-Fi credentials remain session-only; no secrets in job storage or service Intents. Hashing is cancellable between chunks. Android foreground-service timeouts are handled; process death, force-stop or reboot requires restarting preparation. Downloads are not resumable. USB writing always requires separate confirmation.
 
 - Adaptive phone/tablet interface; German and English; light/dark theme.
 - Official OS catalog, local images, XZ/GZip/ZIP decompression.

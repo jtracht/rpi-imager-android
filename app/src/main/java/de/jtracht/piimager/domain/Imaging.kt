@@ -17,10 +17,11 @@ interface BlockTarget : AutoCloseable {
 data class PreparedImage(val file: File, val name: String, val sha256: String)
 
 object Imaging {
-    fun digest(input: InputStream): String = input.use {
+    fun digest(input: InputStream, checkpoint: () -> Unit = {}): String = input.use {
         val hash = MessageDigest.getInstance("SHA-256")
         val bytes = ByteArray(1024 * 1024)
         while (true) {
+            checkpoint()
             val count = it.read(bytes)
             if (count < 0) break
             hash.update(bytes, 0, count)

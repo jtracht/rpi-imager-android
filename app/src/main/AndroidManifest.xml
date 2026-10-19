@@ -3,6 +3,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <application android:theme="@style/AppTheme" android:label="@string/app_name"
@@ -15,5 +16,6 @@
             </intent-filter>
         </activity>
         <service android:name=".data.ImagingService" android:exported="false" android:foregroundServiceType="connectedDevice" />
+        <service android:name=".data.PreparationService" android:exported="false" android:foregroundServiceType="dataSync" />
     </application>
 </manifest>
