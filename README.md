@@ -99,6 +99,8 @@ Unter Windows `gradlew.bat` verwenden. Für einen signierten Release die Umgebun
 
 ## Prüfung und Screenshots
 
+Alle Aufnahmen sind in der [Screenshot-Übersicht](docs/screenshots/README.md) beschrieben.
+
 Version 0.5.0: [Prüfbericht zum Hintergrunddienst](docs/VALIDATION-0.5.0.md). Die CI enthält zusätzlich einen echten Android-Emulator-Test für Activity-Wechsel, Prüfsumme und Abbruch.
 
 Version 0.4.0: [Prüfbericht zu Modellauswahl und Suche](docs/VALIDATION-0.4.0.md), [Modellauswahl](docs/screenshots/model-picker-360.png), [Suche mit Android-Tastatur](docs/screenshots/catalog-keyboard-320.png).
