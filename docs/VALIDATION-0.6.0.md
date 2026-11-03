@@ -21,6 +21,10 @@ Ab 840 dp zeigt eine Schrittliste links den Stand jedes Schritts; darunter steht
 - Beim Prüfen behoben: ganze Schalterzeilen schalten um, festhängender Wartezustand nach Abbruch, Unterkategorien beginnen oben.
 - Screenshots: [docs/screenshots/README.md](screenshots/README.md).
 
+## Veröffentlichungsprüfung
+
+[CI mit Android-Emulator](https://github.com/jtracht/rpi-imager-android/actions/runs/41607231520) und [Tag-Release-Pipeline](https://github.com/jtracht/rpi-imager-android/actions/runs/41607726409) erfolgreich. [Release v0.6.0](https://github.com/jtracht/rpi-imager-android/releases/tag/v0.6.0) mit signierter APK und allen Quell-/Prüfsummenanhängen veröffentlicht. Sämtliche Anhänge erneut heruntergeladen und gegen `SHA256SUMS` geprüft. Die APK meldet `versionName=v0.6.0`, besitzt denselben Signaturschlüssel wie die Vorgänger und enthält keine Test-Provider oder Instrumentierungs-Komponenten. Die mit R8 optimierte APK auf API 35 installiert und kalt gestartet; Modellliste angezeigt, Modellwahl führte automatisch zu Schritt 2 mit Katalog; kein Crash-Log.
+
 ## Verbleibende Grenzen
 
 Der Schreibschritt wurde im Emulator nicht bedient (kein USB-Speicher). Die nachträgliche Vorkonfiguration wurde nur mit dem 68-MB-Test-Image geprüft, nicht mit einem mehrere GB großen offiziellen Image. Katalog-Images werden beim Antippen sofort geladen, auch über mobile Daten. Abbruch während des Schreibens der Einstellungen verwirft das geladene Image. Übernimmt eine neue Activity ein Image aus einer laufenden Vorbereitung, kennt sie dessen Quelle nicht; Einstellungen lassen sich dann nicht neu laden und bei lokalen Images kein Format wählen. Dunkles Design, große Schrift sowie die Reiter WLAN, SSH, Schnittstellen und Connect im neuen Formular wurden nicht erneut visuell geprüft. Physische USB-Kompatibilität, Pi-Erststart und TalkBack bleiben Hardwaretests.
