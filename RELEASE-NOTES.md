@@ -1,6 +1,8 @@
 Native Android adaptation of Raspberry Pi Imager. Requires Android 8+ and a USB-OTG mass-storage reader (SCSI/Bulk-Only). Independent project, not an official Raspberry Pi product.
 
-New in v0.6.2: complete German and English error messages. First-boot validation, loading, customizing, USB and writing errors are reported as problem codes and shown translated in dialogs, the settings step and notifications; network failures get one clear message, anything unknown is shown as an unexpected error with its original text. OS names and descriptions from the official catalog stay in English.
+New in v0.6.3: documentation only, recording the verified v0.6.2 release. The app code is unchanged from v0.6.2.
+
+From v0.6.2: complete German and English error messages. First-boot validation, loading, customizing, USB and writing errors are reported as problem codes and shown translated in dialogs, the settings step and notifications; network failures get one clear message, anything unknown is shown as an unexpected error with its original text. OS names and descriptions from the official catalog stay in English.
 
 From v0.6.1: the status card no longer claims that settings are being written while the image is still loading, and rejected first-boot settings are shown next to the Next button instead of only at the end of the form. Writing and verification were tested end to end with two official Raspberry Pi OS images (catalog download with cloud-init settings, local `.img.xz` with systemd first-run) on emulated USB mass-storage sticks; the written data matched the prepared images byte for byte.
 
