@@ -16,14 +16,18 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.UUID
 
-/** Session-only request. Secrets are never placed in an Intent, Bundle or persistent job. */
+/**
+ * Session-only request. Secrets are never placed in an Intent, Bundle or persistent job.
+ * With [base], the already loaded image is customized instead of loading the source again.
+ */
 data class PreparationRequest(val entry: OsEntry?, val uri: Uri?, val settings: Customization,
-                              val format: InitFormat, val model: PiModel?) {
+                              val format: InitFormat, val model: PiModel?, val base: PreparedImage? = null) {
     fun validate() {
         require(entry != null || uri != null) { "Choose an image" }
         settings.validate(entry?.let { InitFormat.fromId(it.initFormat) } ?: format)
         entry?.validateCustomization(settings)
         require(entry == null || CatalogSelection.supports(entry, model)) { "Image does not match the selected model" }
+        if (base != null) require(settings.enabled && !base.settings.enabled) { "Only an unmodified image can be customized" }
     }
 }
 
@@ -67,7 +71,9 @@ class PreparationService : Service() {
             var result = PreparationState()
             try {
                 wakeLock.acquire(6 * 60 * 60 * 1000L)
-                val image = ImageRepository(this@PreparationService).prepare(request.entry, request.uri, request.settings, request.format, request.model) { bytes ->
+                val repository = ImageRepository(this@PreparationService)
+                val image = if (request.base != null) repository.customize(request.base, request.entry, request.settings, request.format)
+                else repository.prepare(request.entry, request.uri, request.settings, request.format, request.model) { bytes ->
                     ensureActive()
                     val now = android.os.SystemClock.elapsedRealtime()
                     if (now - lastNotification >= 500) {

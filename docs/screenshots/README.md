@@ -4,30 +4,49 @@
 
 Eine Aufnahme zeigt den Stand ihrer Version, nicht zwingend die aktuelle Oberfläche.
 
-## Startseite
+## Schritt-für-Schritt-Ablauf
 
-Automatisch von `scripts/emulator_smoke.py` erzeugt, zuletzt aktualisiert für Version 0.4.0. Noch ohne ausgewähltes Image, daher sind die abhängigen Schaltflächen gesperrt.
+Die App führt in fünf Schritten durch den Vorgang: Pi-Modell → Betriebssystem → Einstellungen → USB-Speicher → Schreiben.
 
-| Datei | Pixel | Sichtbar |
-| --- | --- | --- |
-| [width-320.png](width-320.png) | 640 × 1600 | Kleinstes Handy-Layout: Modellkarte und Anfang von „1 · Betriebssystem“. „Pi-Modell wählen“ erscheint hervorgehoben. |
-| [width-360.png](width-360.png) | 720 × 1600 | Handy-Layout, einspaltig. |
-| [width-411.png](width-411.png) | 822 × 1644 | Großes Handy-Layout, einspaltig. |
-| [width-600.png](width-600.png) | 1200 × 2400 | Weiterhin einspaltig; Schritt 1 und der Anfang von „2 · USB-Speicher“ sind sichtbar. |
-| [width-840.png](width-840.png) | 1680 × 2400 | Tablet-Layout: Schritte 1 und 2 nebeneinander, darunter Schritt 3 mit gesperrtem „Image schreiben“. |
+- **Pi-Modell:** Die Modelle stehen direkt als Liste. Ein Tipp wählt das Modell und wechselt automatisch weiter; einen „Weiter“-Knopf gibt es dort nicht. Das Modell steht danach im Stepper bei Schritt 1.
+- **Betriebssystem:** Der Katalog wird direkt im Schritt angezeigt, mit Suche und Unterkategorien; darunter steht „Lokales Image auswählen“. Sobald ein Image gewählt ist, startet das Laden im Hintergrund und die App wechselt zu den Einstellungen.
+- **Einstellungen:** Die Vorkonfiguration für den ersten Start wird ausgefüllt, während das Image lädt. „Weiter“ schreibt sie in das geladene Image, ohne erneuten Download, und öffnet danach automatisch den USB-Schritt.
+- **USB-Speicher** und **Schreiben** wie zuvor; „Weiter“ ist erst aktiv, wenn der Schritt erledigt ist.
 
-## Modellauswahl und Katalog
+Erledigte Schritte erhalten einen Haken und lassen sich direkt antippen. Schritte wechseln mit einer Schiebe- und Überblendanimation. Unter 840 dp steht der Stepper oben (unter 560 dp nur Schritt 1 mit Namen), ab 840 dp als Schrittliste mit dem jeweiligen Stand links.
 
-Version 0.4.0, siehe [Prüfbericht](../VALIDATION-0.4.0.md).
+Die `width-*.png` erzeugt `scripts/emulator_smoke.py` automatisch. Sie zeigen den ersten Schritt nach dem Start.
 
 | Datei | Pixel | Sichtbar |
 | --- | --- | --- |
-| [model-picker-360.png](model-picker-360.png) | 720 × 1600 | Dialog „Pi-Modell wählen“ mit „Alle Modelle“ als aktiver Auswahl und dem Hinweis, dass ein Modellwechsel Image-Auswahl und Einstellungen zurücksetzt. |
+| [width-320.png](width-320.png) | 640 × 1600 | Kleinstes Handy-Layout: Stepper, Einleitung und Anfang der Modellliste. |
+| [width-360.png](width-360.png) | 720 × 1600 | Handy-Layout. |
+| [width-411.png](width-411.png) | 822 × 1644 | Großes Handy-Layout. |
+| [width-600.png](width-600.png) | 1200 × 2400 | Kleines Tablet: Stepper mit allen Schrittnamen. |
+| [width-840.png](width-840.png) | 1680 × 2400 | Tablet hochkant: Schrittliste links, Modellliste zweispaltig rechts. |
+| [stepper-model-chosen-360.png](stepper-model-chosen-360.png) | 720 × 1600 | Handy direkt nach Tipp auf „Raspberry Pi 5“: automatisch in Schritt 2 mit dem Katalog, „Pi 5“ unter Schritt 1. |
+| [stepper-local-option-360.png](stepper-local-option-360.png) | 720 × 1600 | Ende der Katalogliste mit Kategorien (›) und darunter „Lokales Image auswählen“. |
+| [stepper-settings-loading-840.png](stepper-settings-loading-840.png) | 1680 × 2400 | Tablet hochkant, Schritt 3 während des automatisch gestarteten Downloads von Raspberry Pi OS (64-bit); „Weiter“ wurde bereits gedrückt, die App wartet auf das Image. |
+| [stepper-settings-360.png](stepper-settings-360.png) | 720 × 1600 | Handy, Schritt 3 mit ausgefüllter Vorkonfiguration (synthetisches Passwort, maskiert). |
+| [stepper-storage-360.png](stepper-storage-360.png) | 720 × 1600 | Handy, Schritt 4 nach Laden und Vorkonfigurieren eines 68-MB-Test-Images: Schritte 1 bis 3 mit Haken, „Weiter“ ohne USB-Speicher gesperrt. |
+| [tablet-landscape-1280.png](tablet-landscape-1280.png) | 2560 × 1600 | Tablet quer, Schritt 4: Schrittliste mit „Raspberry Pi 5“, „Lokales Image · Image bereit · 68,16 MB“ und „Konfiguriert: raspberrypi · Benutzer pi“. |
+
+Alle `stepper-*` und `tablet-landscape-1280.png` sind von Hand im Emulator aufgenommen.
+
+## Modellauswahl und Katalog (historisch)
+
+Version 0.4.0, siehe [Prüfbericht](../VALIDATION-0.4.0.md). Modellauswahl und Katalog waren damals eigene Dialoge; heute sind sie Schritt 1 und 2 des Ablaufs oben.
+
+| Datei | Pixel | Sichtbar |
+| --- | --- | --- |
+| [model-picker-360.png](model-picker-360.png) | 720 × 1600 | Dialog „Pi-Modell wählen“ mit „Alle Modelle“ als aktiver Auswahl und dem Hinweis, dass ein Modellwechsel Image-Auswahl und Einstellungen zurücksetzt. Stand 0.4.0; der Dialog ist inzwischen durch die Modellliste in Schritt 1 ersetzt. |
 | [catalog-filter-320.png](catalog-filter-320.png) | 640 × 1600 | Katalog, gefiltert auf Raspberry Pi 2, mit leerem Suchfeld. |
 | [catalog-keyboard-320.png](catalog-keyboard-320.png) | 640 × 1600 | Suche nach „Ubuntu“ im Pi-2-Katalog bei geöffneter Android-Tastatur; Treffer ist die Kategorie „Other general-purpose OS“. |
 | [catalog-search-840.png](catalog-search-840.png) | 1680 × 1600 | Suche nach „Lite“ im Pi-5-Katalog im Tablet-Layout, mit zwei Kategorien als Treffer. |
 
-## Einstellungen für den ersten Start
+## Einstellungen für den ersten Start (historisch)
+
+Damals ein eigener Dialog; heute Schritt 3 des Ablaufs oben.
 
 | Datei | Version | Pixel | Sichtbar |
 | --- | --- | --- | --- |

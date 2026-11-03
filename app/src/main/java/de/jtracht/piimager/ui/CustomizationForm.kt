@@ -1,7 +1,6 @@
 package de.jtracht.piimager.ui
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -9,69 +8,47 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import de.jtracht.piimager.R
 import de.jtracht.piimager.domain.Customization
 import de.jtracht.piimager.domain.InitFormat
 import de.jtracht.piimager.domain.ConnectProvisioning
 
+/**
+ * First-boot settings as an inline form for the settings step. Confirming happens through the step's
+ * Next button, which validates the draft and reports problems through [error].
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun CustomizationDialog(settings: Customization, format: InitFormat, section: Int, local: Boolean, connectAvailable: Boolean,
-                        change: (Customization, InitFormat) -> Unit, changeSection: (Int) -> Unit,
-                        dismiss: () -> Unit, save: (Customization, InitFormat) -> Unit) {
-    var error by remember { mutableStateOf<String?>(null) }
-    Dialog(onDismissRequest = dismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.fillMaxSize().safeDrawingPadding(), color = MaterialTheme.colorScheme.background) {
-            Column(Modifier.fillMaxSize().imePadding().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Column(Modifier.widthIn(max = 720.dp).fillMaxHeight()) {
-                    Text(stringResource(R.string.custom_title), style = MaterialTheme.typography.headlineSmall)
-                    LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 16.dp)) {
-                        item { Text(stringResource(R.string.custom_hint), style = MaterialTheme.typography.bodySmall) }
-                        item { SettingSwitch(R.string.custom_enable, settings.enabled) { change(settings.copy(enabled = it), format) } }
-                        if (settings.enabled) {
-                            item {
-                                if (local) FormatPicker(format) { change(settings, it) }
-                                else Text(stringResource(R.string.custom_format, format.id.ifEmpty { "—" }))
-                            }
-                            item {
-                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    listOf(R.string.custom_system, R.string.custom_wifi, R.string.custom_ssh, R.string.custom_interfaces, R.string.custom_connect).forEachIndexed { index, title ->
-                                        FilterChip(selected = section == index, onClick = { changeSection(index) }, label = { Text(stringResource(title)) })
-                                    }
-                                }
-                            }
-                            item {
-                                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    when (section) {
-                                        0 -> SystemSettings(settings) { change(it, format) }
-                                        1 -> WifiSettings(settings) { change(it, format) }
-                                        2 -> SshSettings(settings) { change(it, format) }
-                                        3 -> InterfaceSettings(settings) { change(it, format) }
-                                        4 -> ConnectSettings(settings, local, connectAvailable) { change(it, format) }
-                                    }
-                                }
-                            }
-                        }
-                        error?.let { message -> item { Text(message, color = MaterialTheme.colorScheme.error) } }
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        TextButton(onClick = dismiss) { Text(stringResource(R.string.cancel)) }
-                        Button(onClick = {
-                            try { settings.validate(format); save(settings, format); dismiss() }
-                            catch (e: IllegalArgumentException) { error = e.message }
-                        }) { Text(stringResource(R.string.custom_save)) }
-                    }
+fun CustomizationForm(settings: Customization, format: InitFormat, section: Int, local: Boolean, connectAvailable: Boolean,
+                      error: String?, change: (Customization, InitFormat) -> Unit, changeSection: (Int) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(stringResource(R.string.custom_hint), style = MaterialTheme.typography.bodySmall)
+        SettingSwitch(R.string.custom_enable, settings.enabled) { change(settings.copy(enabled = it), format) }
+        if (settings.enabled) {
+            if (local) FormatPicker(format) { change(settings, it) }
+            else Text(stringResource(R.string.custom_format, format.id.ifEmpty { "—" }))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(R.string.custom_system, R.string.custom_wifi, R.string.custom_ssh, R.string.custom_interfaces, R.string.custom_connect).forEachIndexed { index, title ->
+                    FilterChip(selected = section == index, onClick = { changeSection(index) }, label = { Text(stringResource(title)) })
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                when (section) {
+                    0 -> SystemSettings(settings) { change(it, format) }
+                    1 -> WifiSettings(settings) { change(it, format) }
+                    2 -> SshSettings(settings) { change(it, format) }
+                    3 -> InterfaceSettings(settings) { change(it, format) }
+                    4 -> ConnectSettings(settings, local, connectAvailable) { change(it, format) }
                 }
             }
         }
+        error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
     }
 }
 
@@ -146,11 +123,12 @@ fun CustomizationDialog(settings: Customization, format: InitFormat, section: In
     SettingSwitch(R.string.custom_onewire, s.oneWire) { update(s.copy(oneWire = it)) }
 }
 
+/** The whole row toggles, not only the small switch, and is announced as one switch. */
 @Composable private fun SettingSwitch(label: Int, checked: Boolean, change: (Boolean) -> Unit) {
-    val description = stringResource(label)
-    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(value = checked, role = Role.Switch, onValueChange = change),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(stringResource(label), Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = change, modifier = Modifier.semantics { contentDescription = description }, thumbContent = null)
+        Switch(checked = checked, onCheckedChange = null, thumbContent = null)
     }
 }
 

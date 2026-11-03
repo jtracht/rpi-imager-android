@@ -14,7 +14,8 @@ interface BlockTarget : AutoCloseable {
     fun read(lba: Long, data: ByteBuffer)
 }
 
-data class PreparedImage(val file: File, val name: String, val sha256: String)
+/** A verified image in private storage. [settings] are the first-boot settings already written into it (session memory only). */
+data class PreparedImage(val file: File, val name: String, val sha256: String, val settings: Customization = Customization())
 
 object Imaging {
     fun digest(input: InputStream, checkpoint: () -> Unit = {}): String = input.use {

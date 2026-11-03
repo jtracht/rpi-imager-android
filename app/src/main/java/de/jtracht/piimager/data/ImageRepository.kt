@@ -134,7 +134,35 @@ class ImageRepository(private val context: Context) {
             }
             jobContext.ensureActive()
             check(temporary.renameTo(destination)) { "Cannot store prepared image" }
-            return PreparedImage(destination, entry?.name ?: uri?.lastPathSegment?.substringAfterLast('/') ?: "Image", hash)
+            return PreparedImage(destination, entry?.name ?: uri?.lastPathSegment?.substringAfterLast('/') ?: "Image", hash,
+                if (settings.enabled) settings else Customization())
+        } finally { temporary.delete() }
+    }
+
+    /**
+     * Writes first-boot settings into an already loaded, still unmodified image, so choosing settings after
+     * loading needs no second download. The image is edited under its temporary name: an interrupted edit
+     * never leaves a half-customized file that looks prepared.
+     */
+    suspend fun customize(base: PreparedImage, entry: OsEntry?, settings: Customization, localFormat: InitFormat): PreparedImage {
+        val format = entry?.let { InitFormat.fromId(it.initFormat) } ?: localFormat
+        require(settings.enabled) { "No first-boot settings to apply" }
+        require(!base.settings.enabled) { "Image already contains first-boot settings" }
+        settings.validate(format)
+        entry?.validateCustomization(settings)
+        val destination = File(context.filesDir, "prepared.img")
+        val temporary = File(context.filesDir, "preparing.tmp")
+        check(base.file == destination && destination.exists()) { "Loaded image is missing" }
+        temporary.delete()
+        check(destination.renameTo(temporary)) { "Cannot open loaded image" }
+        try {
+            val jobContext = currentCoroutineContext()
+            check(Imaging.digest(temporary.inputStream()) { jobContext.ensureActive() }.equals(base.sha256, ignoreCase = true)) { "Loaded image changed" }
+            BootImageEditor.apply(temporary, CustomizationGenerator.generate(settings, format)) { jobContext.ensureActive() }
+            val hash = Imaging.digest(temporary.inputStream()) { jobContext.ensureActive() }
+            jobContext.ensureActive()
+            check(temporary.renameTo(destination)) { "Cannot store prepared image" }
+            return PreparedImage(destination, base.name, hash, settings)
         } finally { temporary.delete() }
     }
 
