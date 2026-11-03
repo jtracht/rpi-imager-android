@@ -130,10 +130,12 @@ fun ImagerScreen(model: ImagerViewModel, requestNotifications: () -> Unit, pickI
         } catch (e: IllegalArgumentException) { settingsError = e.message }
     }
     val nextAction = when (step) {
+        // A rejected confirmation is repeated next to the button, as the form field may be scrolled out of view.
         WizardStep.Settings -> NextAction(enabled = state.imageChosen && !advanceWhenReady,
-            hint = if (advanceWhenReady) R.string.settings_waiting else null, onNext = confirmSettings)
-        WizardStep.Image -> NextAction(enabled = furthest > step, hint = if (furthest > step) null else R.string.next_needs_os) { navigate(WizardStep.Settings) }
-        WizardStep.Storage -> NextAction(enabled = furthest > step, hint = if (furthest > step) null else R.string.next_needs_target) { navigate(WizardStep.Write) }
+            hint = settingsError ?: if (advanceWhenReady) stringResource(R.string.settings_waiting) else null,
+            isError = settingsError != null, onNext = confirmSettings)
+        WizardStep.Image -> NextAction(enabled = furthest > step, hint = if (furthest > step) null else stringResource(R.string.next_needs_os)) { navigate(WizardStep.Settings) }
+        WizardStep.Storage -> NextAction(enabled = furthest > step, hint = if (furthest > step) null else stringResource(R.string.next_needs_target)) { navigate(WizardStep.Write) }
         else -> null
     }
 
@@ -230,7 +232,7 @@ fun ImagerScreen(model: ImagerViewModel, requestNotifications: () -> Unit, pickI
 }
 
 /** What the Next button of the bottom bar does on the current step; null hides it. */
-private class NextAction(val enabled: Boolean, val hint: Int?, val onNext: () -> Unit)
+private class NextAction(val enabled: Boolean, val hint: String?, val isError: Boolean = false, val onNext: () -> Unit)
 
 /** Steps slide in the direction of travel and cross-fade; system animation settings scale the duration. */
 @Composable private fun StepPager(step: WizardStep, gutter: Dp, modifier: Modifier, catalog: Any?, content: @Composable ColumnScope.(WizardStep) -> Unit) {
@@ -267,16 +269,17 @@ private class NextAction(val enabled: Boolean, val hint: Int?, val onNext: () ->
 
 @Composable private fun StepNavigation(next: NextAction?, enabled: Boolean, gutter: Dp, back: () -> Unit) {
     val blocked = next?.hint
+    val hintColor = if (next?.isError == true) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
     Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
         BoxWithConstraints {
             // On phones the hint gets its own line so it never squeezes between the buttons.
             val stacked = maxWidth < 600.dp
             Column(Modifier.fillMaxWidth().padding(horizontal = gutter, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (stacked) blocked?.let { Text(stringResource(it), style = MaterialTheme.typography.bodySmall, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.End) }
+                if (stacked) blocked?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = hintColor, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.End) }
                 Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                     OutlinedButton(onClick = back, enabled = enabled) { Text(stringResource(R.string.back)) }
                     Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-                        if (!stacked) blocked?.let { Text(stringResource(it), style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.End) }
+                        if (!stacked) blocked?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = hintColor, textAlign = TextAlign.End) }
                     }
                     if (next != null) Button(onClick = next.onNext, enabled = enabled && next.enabled) { Text(stringResource(R.string.next)) }
                 }
@@ -453,7 +456,7 @@ private fun Modifier.stepSemantics(item: WizardStep, step: WizardStep, reachable
         when {
             state.preparing -> {
                 LinearProgressIndicator(Modifier.fillMaxWidth())
-                Text(if (state.customization.enabled) stringResource(R.string.image_customizing)
+                Text(if (state.customizing) stringResource(R.string.image_customizing)
                     else stringResource(R.string.image_loading, size(state.bytes)))
                 Text(stringResource(R.string.preparation_background), style = MaterialTheme.typography.bodySmall)
                 TextButton(onClick = cancel) { Text(stringResource(R.string.cancel)) }

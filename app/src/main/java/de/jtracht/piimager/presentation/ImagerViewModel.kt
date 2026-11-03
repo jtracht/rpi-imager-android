@@ -25,6 +25,8 @@ data class ScreenState(
     val settingsPending: Boolean = false,
     /** The settings step was confirmed for the current image. */
     val settingsConfirmed: Boolean = false,
+    /** The running preparation writes settings into the loaded image, rather than loading it. */
+    val customizing: Boolean = false,
     val draft: Customization = Customization(), val draftFormat: InitFormat = InitFormat.NONE, val draftSection: Int = 0,
     val models: List<PiModel> = emptyList(), val model: PiModel? = null, val catalogQuery: String = "",
     /** Counts accepted image choices, so the screen can move on even when the same image is chosen again. */
@@ -53,6 +55,7 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
             PreparationService.state.collect { progress ->
                 mutable.update { current ->
                     current.copy(preparing = progress.busy || clearingImage, bytes = progress.bytes, prepared = progress.image,
+                        customizing = current.customizing && progress.busy,
                         // A new screen in the same process adopts the settings already written into the image.
                         customization = if (current.customization == Customization() && progress.image != null) progress.image.settings else current.customization,
                         error = progress.error ?: current.error)
@@ -110,7 +113,7 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
         // If the job cannot start, the settings stay pending so the old image is never taken as ready.
         if (start(PreparationRequest(current.entry, current.uri, wanted, current.localFormat, current.model, base))) {
             pendingSettings = null
-            mutable.update { it.copy(settingsPending = false) }
+            mutable.update { it.copy(settingsPending = false, customizing = base != null) }
         }
     }
 
