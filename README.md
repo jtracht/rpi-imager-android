@@ -103,7 +103,7 @@ Unter Windows `gradlew.bat` verwenden. Für einen signierten Release die Umgebun
 
 Alle Aufnahmen sind in der [Screenshot-Übersicht](docs/screenshots/README.md) beschrieben.
 
-Version 0.6.0: [Prüfbericht zur Schritt-für-Schritt-Oberfläche](docs/VALIDATION-0.6.0.md), [Handy](docs/screenshots/stepper-model-chosen-360.png), [Tablet](docs/screenshots/tablet-landscape-1280.png).
+Version 0.6.0/0.6.1: [Prüfbericht zur Schritt-für-Schritt-Oberfläche](docs/VALIDATION-0.6.0.md), einschließlich Ende-zu-Ende-Test mit offiziellen Images auf virtuellen USB-Sticks, [Handy](docs/screenshots/stepper-model-chosen-360.png), [Tablet](docs/screenshots/tablet-landscape-1280.png).
 
 Version 0.5.0: [Prüfbericht zum Hintergrunddienst](docs/VALIDATION-0.5.0.md). Die CI enthält zusätzlich einen echten Android-Emulator-Test für Activity-Wechsel, Prüfsumme und Abbruch.
 
