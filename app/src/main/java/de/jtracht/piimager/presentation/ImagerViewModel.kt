@@ -23,6 +23,8 @@ data class ScreenState(
     val customization: Customization = Customization(), val localFormat: InitFormat = InitFormat.NONE,
     /** True while confirmed settings still have to be written into the image. */
     val settingsPending: Boolean = false,
+    /** The settings step was confirmed for the current image. */
+    val settingsConfirmed: Boolean = false,
     val draft: Customization = Customization(), val draftFormat: InitFormat = InitFormat.NONE, val draftSection: Int = 0,
     val models: List<PiModel> = emptyList(), val model: PiModel? = null, val catalogQuery: String = "",
     /** Counts accepted image choices, so the screen can move on even when the same image is chosen again. */
@@ -88,7 +90,7 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
         settings.validate(format)
         current.entry?.validateCustomization(settings)
         pendingSettings = if (settings.enabled) settings else Customization()
-        mutable.update { it.copy(customization = settings, localFormat = format, settingsPending = true, error = null) }
+        mutable.update { it.copy(customization = settings, localFormat = format, settingsPending = true, settingsConfirmed = true, error = null) }
         reconcile()
     }
 
@@ -118,7 +120,7 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
         pendingSettings = null
         PreparationService.clearResult()
         mutable.update { it.copy(prepared = null, entry = null, uri = null, customization = Customization(), draft = Customization(),
-            settingsPending = false, preparing = true, bytes = 0) }
+            settingsPending = false, settingsConfirmed = false, preparing = true, bytes = 0) }
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) {
@@ -154,7 +156,7 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
         PreparationService.clearResult()
         // A board change invalidates both the image choice and its session-only credentials.
         mutable.update { it.copy(model = model, entry = null, uri = null, prepared = null, customization = Customization(), draft = Customization(),
-            settingsPending = false, localFormat = InitFormat.NONE, catalogQuery = "", entries = emptyList(), catalogDepth = 0, error = null) }
+            settingsPending = false, settingsConfirmed = false, localFormat = InitFormat.NONE, catalogQuery = "", entries = emptyList(), catalogDepth = 0, error = null) }
         return true
     }
     fun searchCatalog(query: String) { mutable.update { it.copy(catalogQuery = query.take(200)) } }
@@ -213,7 +215,7 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
         pendingSettings = null
         PreparationService.clearResult()
         mutable.update { it.copy(entry = entry, uri = uri, prepared = null, error = null, customization = Customization(),
-            draft = Customization(), settingsPending = false, localFormat = InitFormat.NONE, selection = it.selection + 1) }
+            draft = Customization(), settingsPending = false, settingsConfirmed = false, localFormat = InitFormat.NONE, selection = it.selection + 1) }
         start(PreparationRequest(entry, uri, Customization(), InitFormat.NONE, mutable.value.model))
     }
 

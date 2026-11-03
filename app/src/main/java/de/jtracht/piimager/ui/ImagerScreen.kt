@@ -224,7 +224,8 @@ fun ImagerScreen(model: ImagerViewModel, requestNotifications: () -> Unit, pickI
 
 @Composable private fun settingsSummary(state: ScreenState): String? = when {
     state.customization.enabled -> stringResource(R.string.custom_summary, state.customization.hostname, state.customization.username)
-    state.prepared != null && !state.settingsPending -> stringResource(R.string.settings_none)
+    // Only once the user confirmed the step, not while the form is still being filled in.
+    state.settingsConfirmed && state.prepared != null && !state.settingsPending -> stringResource(R.string.settings_none)
     else -> null
 }
 

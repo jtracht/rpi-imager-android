@@ -25,13 +25,19 @@ Die `width-*.png` erzeugt `scripts/emulator_smoke.py` automatisch. Sie zeigen de
 | [width-600.png](width-600.png) | 1200 × 2400 | Kleines Tablet: Stepper mit allen Schrittnamen. |
 | [width-840.png](width-840.png) | 1680 × 2400 | Tablet hochkant: Schrittliste links, Modellliste zweispaltig rechts. |
 | [stepper-model-chosen-360.png](stepper-model-chosen-360.png) | 720 × 1600 | Handy direkt nach Tipp auf „Raspberry Pi 5“: automatisch in Schritt 2 mit dem Katalog, „Pi 5“ unter Schritt 1. |
+| [stepper-catalog-search-360.png](stepper-catalog-search-360.png) | 720 × 1600 | Katalogsuche nach „Lite“ im Pi-5-Katalog bei geöffneter Android-Tastatur. |
+| [stepper-subcategory-360.png](stepper-subcategory-360.png) | 720 × 1600 | Geöffnete Unterkategorie „Raspberry Pi OS (other)“ mit „‹ Übergeordnete Kategorie“; die Liste beginnt oben. |
 | [stepper-local-option-360.png](stepper-local-option-360.png) | 720 × 1600 | Ende der Katalogliste mit Kategorien (›) und darunter „Lokales Image auswählen“. |
 | [stepper-settings-loading-840.png](stepper-settings-loading-840.png) | 1680 × 2400 | Tablet hochkant, Schritt 3 während des automatisch gestarteten Downloads von Raspberry Pi OS (64-bit); „Weiter“ wurde bereits gedrückt, die App wartet auf das Image. |
-| [stepper-settings-360.png](stepper-settings-360.png) | 720 × 1600 | Handy, Schritt 3 mit ausgefüllter Vorkonfiguration (synthetisches Passwort, maskiert). |
+| [stepper-settings-360.png](stepper-settings-360.png) | 720 × 1600 | Handy, Schritt 3 mit ausgefüllter Vorkonfiguration, Reiter „System“ (synthetisches Passwort, maskiert). |
+| [stepper-settings-wifi-360.png](stepper-settings-wifi-360.png) | 720 × 1600 | Reiter „WLAN“ mit Test-SSID und maskiertem synthetischem Passwort. |
+| [stepper-settings-connect-840.png](stepper-settings-connect-840.png) | 1680 × 2400 | Tablet hochkant, Reiter „Connect“ mit maskiertem synthetischem Schlüssel; die Schrittliste zeigt das geladene lokale Image. |
 | [stepper-storage-360.png](stepper-storage-360.png) | 720 × 1600 | Handy, Schritt 4 nach Laden und Vorkonfigurieren eines 68-MB-Test-Images: Schritte 1 bis 3 mit Haken, „Weiter“ ohne USB-Speicher gesperrt. |
 | [tablet-landscape-1280.png](tablet-landscape-1280.png) | 2560 × 1600 | Tablet quer, Schritt 4: Schrittliste mit „Raspberry Pi 5“, „Lokales Image · Image bereit · 68,16 MB“ und „Konfiguriert: raspberrypi · Benutzer pi“. |
 
-Alle `stepper-*` und `tablet-landscape-1280.png` sind von Hand im Emulator aufgenommen.
+| [stepper-dark-360.png](stepper-dark-360.png) | 720 × 1600 | Schritt 1 im dunklen Design. Der Rahmen um Schritt 1 ist Androids Fokusanzeige, weil der Emulator seit dem Neustart nicht berührt wurde. |
+
+Alle `stepper-*` und `tablet-landscape-1280.png` sind von Hand im Emulator mit Version 0.6.0 aufgenommen.
 
 ## Modellauswahl und Katalog (historisch)
 
