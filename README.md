@@ -6,19 +6,21 @@ Unabhängige native Android-Portierung auf Basis des [Raspberry Pi Imager](https
 
 Unter [Releases](https://github.com/jtracht/rpi-imager-android/releases) die signierte `pi-imager-android.apk` laden. Android 8 oder neuer, USB-Host/OTG und ein USB-SD-Kartenleser oder USB-Stick mit SCSI/Bulk-Only-Transport sind erforderlich. Kein Root erforderlich. Interne SD-Steckplätze können über Androids Dateiauswahl nicht als Rohdatenträger beschrieben werden.
 
-Optional zuerst „Pi-Modell wählen“ öffnen. Die Modelle und Zuordnungen stammen aus dem offiziellen Katalog; „Alle Modelle“ hebt die Filterung auf. Ein Modellwechsel setzt Image-Auswahl und Sitzungseinstellungen zurück. Bereits zwischengespeicherte Image-Dateien werden durch „Image und Einstellungen löschen“ entfernt. Lokale Images werden nicht automatisch auf Modellkompatibilität geprüft.
+Die App führt in fünf Schritten durch den Vorgang. Ein Tipp auf ein Modell oder ein Image führt automatisch weiter; erledigte Schritte lassen sich im Stepper (Tablet: Schrittliste links) direkt wieder öffnen.
 
-1. Betriebssystem aus dem offiziellen Katalog oder lokale IMG-/ISO-Datei auswählen. XZ, GZ und ZIP werden anhand ihrer Dateisignatur erkannt. Bei ZIP wird die erste IMG-/ISO-Datei verwendet.
-2. Optional „Ersten Start konfigurieren“ öffnen: Benutzerkonto, Hostname, Zeitzone, Tastaturlayout, WLAN, SSH, Connect und Hardware-Schnittstellen einstellen. Bei lokalen Images das tatsächlich unterstützte Einrichtungsformat auswählen; bei Katalog-Images wird `init_format` übernommen.
-3. Image vorbereiten. Das entpackte Image liegt im privaten App-Speicher; entsprechend viel freier Speicher ist erforderlich. Katalog-Images brauchen einen gültigen SHA-256-Wert. Die App prüft zuerst das Original, passt danach die FAT32-Bootpartition an und berechnet einen neuen SHA-256-Wert für das konfigurierte Image. Lokale Images erhalten einen eigenen SHA-256-Wert, jedoch keinen externen Herkunftsnachweis.
-4. Datenträger in den Android-Speichereinstellungen auswerfen, angeschlossen lassen und in der App USB-Zugriff erlauben. Bei Kartenlesern mit mehreren Speichereinheiten werden die bestückten LUNs einzeln mit Kapazität angezeigt.
-5. Ziel einschließlich LUN im Löschdialog kontrollieren und Schreiben bestätigen. Danach prüft die App jeden geschriebenen Sektor einschließlich der Auffüllbytes. Erst nach erfolgreicher Prüfung abziehen.
+1. **Pi-Modell** antippen. Die Modelle und Zuordnungen stammen aus dem offiziellen Katalog; „Alle Modelle“ hebt die Filterung auf. Ein Modellwechsel setzt Image-Auswahl und Sitzungseinstellungen zurück. Lokale Images werden nicht automatisch auf Modellkompatibilität geprüft.
+2. **Betriebssystem** aus dem Katalog antippen oder darunter „Lokales Image auswählen“ (IMG/ISO; XZ, GZ und ZIP werden anhand ihrer Dateisignatur erkannt, bei ZIP wird die erste IMG-/ISO-Datei verwendet). Das Laden startet sofort – bei Katalog-Images also der Download, auch über mobile Daten. Das entpackte Image liegt im privaten App-Speicher; entsprechend viel freier Speicher ist erforderlich. Katalog-Images brauchen einen gültigen SHA-256-Wert und werden gegen ihn geprüft. Lokale Images erhalten einen eigenen SHA-256-Wert, jedoch keinen externen Herkunftsnachweis.
+3. **Einstellungen** für den ersten Start, während das Image lädt: Benutzerkonto, Hostname, Zeitzone, Tastaturlayout, WLAN, SSH, Connect und Hardware-Schnittstellen. Bei lokalen Images das tatsächlich unterstützte Einrichtungsformat auswählen; bei Katalog-Images wird `init_format` übernommen. „Weiter“ schreibt die Einstellungen in die FAT32-Bootpartition des geladenen Images, berechnet einen neuen SHA-256-Wert und öffnet danach automatisch den nächsten Schritt. Bereits geschriebene Einstellungen zu ändern lädt das Image neu.
+4. **USB-Speicher:** Datenträger in den Android-Speichereinstellungen auswerfen, angeschlossen lassen und in der App USB-Zugriff erlauben. Bei Kartenlesern mit mehreren Speichereinheiten werden die bestückten LUNs einzeln mit Kapazität angezeigt.
+5. **Schreiben:** Ziel einschließlich LUN im Löschdialog kontrollieren und Schreiben bestätigen. Danach prüft die App jeden geschriebenen Sektor einschließlich der Auffüllbytes. Erst nach erfolgreicher Prüfung abziehen.
+
+Zwischengespeicherte Image-Dateien werden durch „Image und Einstellungen löschen“ entfernt.
 
 Vorbereitung und USB-Schreiben laufen als getrennte Vordergrunddienste mit Benachrichtigung und Wake Lock weiter, wenn die App-Ansicht verlassen wird. Ein Abbruch, Prozessende, Neustart oder Abziehen während des Schreibens hinterlässt eventuell einen unvollständigen Datenträger; es gibt keinen automatischen Neustart des Schreibvorgangs. Downloads sind weiterhin nicht fortsetzbar. Physische USB-Kompatibilität und TalkBack sind separat auf Geräten zu testen; CI allein bestätigt diese nicht.
 
 ## Vorbereitung im Hintergrund
 
-„Image herunterladen / vorbereiten“ startet einen `dataSync`-Vordergrunddienst für Download, Entpacken, Prüfsumme und Vorkonfiguration. Er arbeitet unabhängig von der geöffneten Activity. Die Benachrichtigung zeigt die entpackte Datenmenge, öffnet die App und bietet einen Abbruchknopf. Eine neue Ansicht im selben App-Prozess übernimmt Fortschritt oder fertiges Image. Auf Android 13+ wird die Benachrichtigungsberechtigung angefragt; auch bei Ablehnung bleibt der Dienst an Androids Regeln gebunden.
+Die Auswahl eines Images startet einen `dataSync`-Vordergrunddienst für Download, Entpacken und Prüfsumme; derselbe Dienst schreibt danach die Vorkonfiguration ins geladene Image. Er arbeitet unabhängig von der geöffneten Activity. Die Benachrichtigung zeigt die entpackte Datenmenge, öffnet die App und bietet einen Abbruchknopf. Eine neue Ansicht im selben App-Prozess übernimmt Fortschritt oder fertiges Image. Auf Android 13+ wird die Benachrichtigungsberechtigung angefragt; auch bei Ablehnung bleibt der Dienst an Androids Regeln gebunden.
 
 Der Auftrag und sämtliche Zugangsdaten bleiben nur im Arbeitsspeicher. Der Start-Intent enthält eine zufällige Auftragskennung und bei lokalen Dokumenten eine vorübergehende lesende URI-Freigabe für den Dienst. Es wird keine dauerhafte Dokumentfreigabe angefordert. Keine Passwörter in Intents, gespeicherten Jobs, Bundles oder Einstellungen. Nach Prozessende, erzwungenem Beenden, Geräte-Neustart oder Android-Zeitlimit muss die Vorbereitung erneut gestartet werden. Ein fertiges Image und seine Prüfsumme werden nicht nach einem Prozess-Neustart automatisch wiederhergestellt. Android 15+ begrenzt `dataSync`-Dienste im Hintergrund; die App stoppt bei `onTimeout` sofort den Dienst und meldet die Unterbrechung. Siehe [Android-Dokumentation](https://developer.android.com/develop/background-work/services/fgs/timeout).
 
@@ -100,6 +102,8 @@ Unter Windows `gradlew.bat` verwenden. Für einen signierten Release die Umgebun
 ## Prüfung und Screenshots
 
 Alle Aufnahmen sind in der [Screenshot-Übersicht](docs/screenshots/README.md) beschrieben.
+
+Version 0.6.0: [Prüfbericht zur Schritt-für-Schritt-Oberfläche](docs/VALIDATION-0.6.0.md), [Handy](docs/screenshots/stepper-model-chosen-360.png), [Tablet](docs/screenshots/tablet-landscape-1280.png).
 
 Version 0.5.0: [Prüfbericht zum Hintergrunddienst](docs/VALIDATION-0.5.0.md). Die CI enthält zusätzlich einen echten Android-Emulator-Test für Activity-Wechsel, Prüfsumme und Abbruch.
 
