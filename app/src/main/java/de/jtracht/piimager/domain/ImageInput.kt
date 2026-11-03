@@ -15,7 +15,7 @@ object ImageInput {
         while (count < magic.size) {
             val n = input.read(magic, count, magic.size - count)
             if (n < 0) break
-            check(n > 0) { "Image source made no progress" }
+            checkOperation(n > 0, OperationProblem.SOURCE_STALLED)
             count += n
         }
         input.reset()
@@ -27,7 +27,7 @@ object ImageInput {
                 val zip = ZipInputStream(input)
                 var item = zip.nextEntry
                 while (item != null && (item.isDirectory || !item.name.lowercase(Locale.ROOT).let { it.endsWith(".img") || it.endsWith(".iso") })) item = zip.nextEntry
-                if (item == null) { zip.close(); error("ZIP contains no IMG or ISO file") }
+                if (item == null) { zip.close(); operationFailure(OperationProblem.ZIP_NO_IMAGE) }
                 zip
             }
             else -> input

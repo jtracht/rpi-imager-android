@@ -11,6 +11,7 @@ import android.os.PowerManager
 import de.jtracht.piimager.MainActivity
 import de.jtracht.piimager.R
 import de.jtracht.piimager.domain.*
+import de.jtracht.piimager.presentation.describe
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,11 +24,11 @@ import java.util.UUID
 data class PreparationRequest(val entry: OsEntry?, val uri: Uri?, val settings: Customization,
                               val format: InitFormat, val model: PiModel?, val base: PreparedImage? = null) {
     fun validate() {
-        require(entry != null || uri != null) { "Choose an image" }
+        requireOperation(entry != null || uri != null, OperationProblem.CHOOSE_IMAGE)
         settings.validate(entry?.let { InitFormat.fromId(it.initFormat) } ?: format)
         entry?.validateCustomization(settings)
-        require(entry == null || CatalogSelection.supports(entry, model)) { "Image does not match the selected model" }
-        if (base != null) require(settings.enabled && !base.settings.enabled) { "Only an unmodified image can be customized" }
+        requireOperation(entry == null || CatalogSelection.supports(entry, model), OperationProblem.MODEL_MISMATCH)
+        if (base != null) requireOperation(settings.enabled && !base.settings.enabled, OperationProblem.PREPARATION_STATE)
     }
 }
 
@@ -62,7 +63,7 @@ class PreparationService : Service() {
             if (Build.VERSION.SDK_INT >= 29) startForeground(10, notification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
             else startForeground(10, notification())
         } catch (e: Exception) {
-            mutable.value = PreparationState(error = e.message ?: getString(R.string.preparation_interrupted))
+            mutable.value = PreparationState(error = describe(e))
             stopSelf()
             return START_NOT_STICKY
         }
@@ -87,7 +88,7 @@ class PreparationService : Service() {
             } catch (_: CancellationException) {
                 result = PreparationState(error = if (timedOut) getString(R.string.preparation_timeout) else null)
             } catch (e: Exception) {
-                result = PreparationState(error = e.message ?: getString(R.string.preparation_interrupted))
+                result = PreparationState(error = describe(e))
             } finally {
                 withContext(NonCancellable + Dispatchers.Main.immediate) {
                     if (wakeLock.isHeld) wakeLock.release()
@@ -140,7 +141,7 @@ class PreparationService : Service() {
         val state = mutable.asStateFlow()
 
         fun begin(context: Context, request: PreparationRequest) = synchronized(lock) {
-            check(!mutable.value.busy && !ImagingService.state.value.busy) { "Another image operation is running" }
+            checkOperation(!mutable.value.busy && !ImagingService.state.value.busy, OperationProblem.ANOTHER_OPERATION)
             request.validate()
             val id = UUID.randomUUID().toString()
             pending = id to request

@@ -1,5 +1,7 @@
 package de.jtracht.piimager.data
 
+import de.jtracht.piimager.domain.*
+
 import android.content.Context
 import android.net.Uri
 import de.jtracht.piimager.domain.Imaging
@@ -27,7 +29,7 @@ class ImageRepository(private val context: Context) {
         while (true) {
             val count = source.read(buffer)
             if (count < 0) break
-            require(output.size() + count <= 8 * 1024 * 1024) { "Catalog too large" }
+            requireOperation(output.size() + count <= 8 * 1024 * 1024, OperationProblem.CATALOG_INVALID)
             output.write(buffer, 0, count)
         }
         val bytes = output.toByteArray()
@@ -47,7 +49,7 @@ class ImageRepository(private val context: Context) {
     }
 
     private fun parseCatalog(array: JSONArray, depth: Int = 0): List<OsEntry> {
-        require(depth <= 12) { "Catalog nesting limit" }
+        requireOperation(depth <= 12, OperationProblem.CATALOG_INVALID)
         return (0 until array.length()).map { index ->
             val item = array.getJSONObject(index)
             OsEntry(item.getString("name"), item.optString("description"), item.optString("url"),
@@ -66,7 +68,7 @@ class ImageRepository(private val context: Context) {
         var url = URL(address)
         repeat(6) {
             currentCoroutineContext().ensureActive()
-            require(url.protocol == "https" && url.userInfo == null) { "Only HTTPS URLs are supported" }
+            requireOperation(url.protocol == "https" && url.userInfo == null, OperationProblem.HTTPS_ONLY)
             val connection = url.openConnection() as HttpsURLConnection
             connection.connectTimeout = 20000
             connection.readTimeout = 30000
@@ -75,14 +77,14 @@ class ImageRepository(private val context: Context) {
                 val status = connection.responseCode
                 currentCoroutineContext().ensureActive()
                 if (status in listOf(301, 302, 303, 307, 308)) {
-                    url = URL(url, connection.getHeaderField("Location") ?: error("Missing redirect"))
+                    url = URL(url, connection.getHeaderField("Location") ?: operationFailure(OperationProblem.REDIRECT))
                 } else {
-                    check(status == 200) { "HTTP $status" }
+                    checkOperation(status == 200, OperationProblem.HTTP_STATUS) { status.toString() }
                     return connection.inputStream.buffered().use { consume(it) }
                 }
             } finally { connection.disconnect() }
         }
-        error("Too many redirects")
+        operationFailure(OperationProblem.REDIRECT)
     }
 
     suspend fun prepare(entry: OsEntry?, uri: Uri?, settings: Customization = Customization(),
@@ -90,7 +92,7 @@ class ImageRepository(private val context: Context) {
         val format = entry?.let { InitFormat.fromId(it.initFormat) } ?: localFormat
         settings.validate(format)
         entry?.validateCustomization(settings)
-        require(entry == null || CatalogSelection.supports(entry, model)) { "This image does not match the selected Raspberry Pi model" }
+        requireOperation(entry == null || CatalogSelection.supports(entry, model), OperationProblem.MODEL_MISMATCH)
         val destination = File(context.filesDir, "prepared.img")
         val temporary = File(context.filesDir, "preparing.tmp")
         destination.delete()
@@ -106,8 +108,8 @@ class ImageRepository(private val context: Context) {
                             val count = source.read(bytes)
                             if (count < 0) break
                             total += count
-                            if (entry != null && entry.size > 0) require(total <= entry.size) { "Image exceeds declared size" }
-                            check(context.filesDir.usableSpace > count + 64L * 1024 * 1024) { "Not enough free app storage" }
+                            if (entry != null && entry.size > 0) requireOperation(total <= entry.size, OperationProblem.DECLARED_SIZE)
+                            checkOperation(context.filesDir.usableSpace > count + 64L * 1024 * 1024, OperationProblem.STORAGE_FULL)
                             output.write(bytes, 0, count)
                             checkpoint(total)
                         }
@@ -116,16 +118,16 @@ class ImageRepository(private val context: Context) {
                 }
             }
             if (entry != null) {
-                require(entry.sha256.matches(Regex("[a-fA-F0-9]{64}"))) { "Catalog image has no valid SHA-256 checksum" }
+                requireOperation(entry.sha256.matches(Regex("[a-fA-F0-9]{64}")), OperationProblem.NO_CHECKSUM)
                 remote(entry.url, copy)
-                if (entry.size > 0) check(temporary.length() == entry.size) { "Image size mismatch" }
+                if (entry.size > 0) checkOperation(temporary.length() == entry.size, OperationProblem.DECLARED_SIZE)
             } else {
                 requireNotNull(uri)
-                (context.contentResolver.openInputStream(uri) ?: error("Cannot open image")).use { copy(it) }
+                (context.contentResolver.openInputStream(uri) ?: operationFailure(OperationProblem.CANNOT_OPEN_IMAGE)).use { copy(it) }
             }
-            check(temporary.length() > 0) { "Empty image" }
+            checkOperation(temporary.length() > 0, OperationProblem.EMPTY_IMAGE)
             var hash = Imaging.digest(temporary.inputStream()) { jobContext.ensureActive() }
-            if (entry != null) check(hash.equals(entry.sha256, ignoreCase = true)) { "SHA-256 mismatch" }
+            if (entry != null) checkOperation(hash.equals(entry.sha256, ignoreCase = true), OperationProblem.CHECKSUM_MISMATCH)
             if (settings.enabled) {
                 jobContext.ensureActive()
                 val payload = CustomizationGenerator.generate(settings, format)
@@ -133,7 +135,7 @@ class ImageRepository(private val context: Context) {
                 hash = Imaging.digest(temporary.inputStream()) { jobContext.ensureActive() }
             }
             jobContext.ensureActive()
-            check(temporary.renameTo(destination)) { "Cannot store prepared image" }
+            checkOperation(temporary.renameTo(destination), OperationProblem.STORAGE_FAILED)
             return PreparedImage(destination, entry?.name ?: uri?.lastPathSegment?.substringAfterLast('/') ?: "Image", hash,
                 if (settings.enabled) settings else Customization())
         } finally { temporary.delete() }
@@ -146,22 +148,22 @@ class ImageRepository(private val context: Context) {
      */
     suspend fun customize(base: PreparedImage, entry: OsEntry?, settings: Customization, localFormat: InitFormat): PreparedImage {
         val format = entry?.let { InitFormat.fromId(it.initFormat) } ?: localFormat
-        require(settings.enabled) { "No first-boot settings to apply" }
-        require(!base.settings.enabled) { "Image already contains first-boot settings" }
+        requireOperation(settings.enabled, OperationProblem.PREPARATION_STATE)
+        requireOperation(!base.settings.enabled, OperationProblem.PREPARATION_STATE)
         settings.validate(format)
         entry?.validateCustomization(settings)
         val destination = File(context.filesDir, "prepared.img")
         val temporary = File(context.filesDir, "preparing.tmp")
-        check(base.file == destination && destination.exists()) { "Loaded image is missing" }
+        checkOperation(base.file == destination && destination.exists(), OperationProblem.PREPARED_IMAGE_CHANGED)
         temporary.delete()
-        check(destination.renameTo(temporary)) { "Cannot open loaded image" }
+        checkOperation(destination.renameTo(temporary), OperationProblem.STORAGE_FAILED)
         try {
             val jobContext = currentCoroutineContext()
-            check(Imaging.digest(temporary.inputStream()) { jobContext.ensureActive() }.equals(base.sha256, ignoreCase = true)) { "Loaded image changed" }
+            checkOperation(Imaging.digest(temporary.inputStream()) { jobContext.ensureActive() }.equals(base.sha256, ignoreCase = true), OperationProblem.PREPARED_IMAGE_CHANGED)
             BootImageEditor.apply(temporary, CustomizationGenerator.generate(settings, format)) { jobContext.ensureActive() }
             val hash = Imaging.digest(temporary.inputStream()) { jobContext.ensureActive() }
             jobContext.ensureActive()
-            check(temporary.renameTo(destination)) { "Cannot store prepared image" }
+            checkOperation(temporary.renameTo(destination), OperationProblem.STORAGE_FAILED)
             return PreparedImage(destination, base.name, hash, settings)
         } finally { temporary.delete() }
     }

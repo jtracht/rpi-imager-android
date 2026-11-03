@@ -32,12 +32,12 @@ object Imaging {
 
     /** Progress also serves as a cancellation checkpoint before each USB operation. */
     fun flash(file: File, target: BlockTarget, progress: (verify: Boolean, fraction: Float) -> Unit) {
-        require(file.length() > 0) { "Empty image" }
-        require(target.blockSize in 512..65536 && target.blockSize.countOneBits() == 1) { "Unsupported sector size" }
+        requireOperation(file.length() > 0, OperationProblem.EMPTY_IMAGE)
+        requireOperation(target.blockSize in 512..65536 && target.blockSize.countOneBits() == 1, OperationProblem.USB_UNSUPPORTED)
         // libaums 0.10 uses SCSI READ/WRITE(10), whose LBA is 32 bits.
-        require(target.blocks in 1..0xFFFFFFFFL) { "Device exceeds SCSI READ/WRITE(10) capacity" }
+        requireOperation(target.blocks in 1..0xFFFFFFFFL, OperationProblem.USB_UNSUPPORTED)
         val requiredBlocks = (file.length() - 1) / target.blockSize + 1
-        require(requiredBlocks <= target.blocks) { "Image is larger than the USB device" }
+        requireOperation(requiredBlocks <= target.blocks, OperationProblem.IMAGE_TOO_LARGE_FOR_DEVICE)
         val chunk = (1024 * 1024 / target.blockSize) * target.blockSize
         for (verify in listOf(false, true)) {
             file.inputStream().buffered().use { source ->
@@ -50,7 +50,7 @@ object Imaging {
                     var received = 0
                     while (received < count) {
                         val n = source.read(expected, received, count - received)
-                        check(n > 0) { "Image ended unexpectedly" }
+                        checkOperation(n > 0, OperationProblem.IMAGE_ENDED)
                         received += n
                     }
                     val lba = offset / target.blockSize
@@ -58,12 +58,12 @@ object Imaging {
                         val actual = ByteArray(padded)
                         val buffer = ByteBuffer.wrap(actual)
                         target.read(lba, buffer)
-                        check(!buffer.hasRemaining()) { "Incomplete USB read" }
-                        check(expected.contentEquals(actual)) { "Verification failed at byte $offset" }
+                        checkOperation(!buffer.hasRemaining(), OperationProblem.USB_TRANSFER_FAILED)
+                        checkOperation(expected.contentEquals(actual), OperationProblem.VERIFY_FAILED) { offset.toString() }
                     } else {
                         val buffer = ByteBuffer.wrap(expected)
                         target.write(lba, buffer)
-                        check(!buffer.hasRemaining()) { "Incomplete USB write" }
+                        checkOperation(!buffer.hasRemaining(), OperationProblem.USB_TRANSFER_FAILED)
                     }
                     offset += count
                 }

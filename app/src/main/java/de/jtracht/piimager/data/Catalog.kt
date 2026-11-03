@@ -1,6 +1,8 @@
 package de.jtracht.piimager.data
 
 import de.jtracht.piimager.domain.Customization
+import de.jtracht.piimager.domain.SettingsProblem
+import de.jtracht.piimager.domain.requireSetting
 
 data class OsEntry(
     val name: String, val description: String = "", val url: String = "",
@@ -11,7 +13,7 @@ data class OsEntry(
     val devices: Set<String>? = null
 ) {
     fun validateCustomization(settings: Customization) {
-        require(!settings.enabled || !settings.connect || "rpi_connect" in capabilities) { "This catalog image does not advertise Raspberry Pi Connect support" }
+        requireSetting(!settings.enabled || !settings.connect || "rpi_connect" in capabilities, SettingsProblem.CONNECT_UNSUPPORTED)
     }
 }
 

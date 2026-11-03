@@ -1,5 +1,8 @@
 package de.jtracht.piimager.data
 
+import de.jtracht.piimager.domain.*
+import de.jtracht.piimager.presentation.describe
+
 import android.app.*
 import android.content.Intent
 import android.content.pm.ServiceInfo
@@ -43,10 +46,10 @@ class ImagingService : Service() {
                 val request = requireNotNull(intent)
                 val target = Storage(requireNotNull(request.getStringExtra("id")), "USB", request.getIntExtra("vendor", -1), request.getIntExtra("product", -1), lun = request.getIntExtra("lun", 0))
                 val file = File(filesDir, "prepared.img")
-                check(Imaging.digest(file.inputStream()) { ensureActive() } == request.getStringExtra("sha256")) { "Prepared image changed" }
+                checkOperation(Imaging.digest(file.inputStream()) { ensureActive() } == request.getStringExtra("sha256"), OperationProblem.PREPARED_IMAGE_CHANGED)
                 ensureActive()
                 UsbStorage(this@ImagingService).open(target).use { device ->
-                    check(device.blocks * device.blockSize == request.getLongExtra("capacity", -1)) { "USB capacity changed; select the device again" }
+                    checkOperation(device.blocks * device.blockSize == request.getLongExtra("capacity", -1), OperationProblem.USB_CAPACITY_CHANGED)
                     Imaging.flash(file, device) { verify, fraction ->
                         ensureActive()
                         mutable.value = WriteState(true, if (verify) R.string.verifying else R.string.writing, fraction)
@@ -61,7 +64,7 @@ class ImagingService : Service() {
             } catch (cancelled: CancellationException) {
                 mutable.value = WriteState(phase = R.string.cancelled)
             } catch (error: Exception) {
-                mutable.value = WriteState(error = error.message ?: error.javaClass.simpleName)
+                mutable.value = WriteState(error = describe(error))
             } finally {
                 if (wakeLock.isHeld) wakeLock.release()
                 stopForeground(STOP_FOREGROUND_REMOVE)

@@ -38,25 +38,25 @@ data class Customization(
 
     fun validate(format: InitFormat) {
         if (!enabled) return
-        require(format != InitFormat.NONE) { "Choose a supported first-boot format for this image" }
-        require(hostname.matches(Regex("[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?"))) { "Hostname must be a single DNS label (1–63 characters)" }
-        require(username.matches(Regex("[a-z_][a-z0-9_-]{0,30}")) && username !in RESERVED_USERS) { "Choose a regular Linux username, not a system account" }
-        require(password.length <= 256 && password.none { it == '\u0000' || it == '\n' || it == '\r' }) { "Invalid account password" }
-        require(password.isNotEmpty() || (ssh && !sshPasswordAuth && keys().isNotEmpty())) { "Set an account password or enable SSH with a public key" }
-        if (password.isNotEmpty()) require(password.length >= 8) { "Account password must have at least 8 characters" }
-        require(timezone in ZoneId.getAvailableZoneIds()) { "Unknown timezone; use a name such as Europe/Berlin" }
-        require(keyboard.matches(Regex("[a-z]{2,3}"))) { "Keyboard layout must be a Linux layout code such as de or us" }
-        require(country in java.util.Locale.getISOCountries()) { "Choose a valid two-letter Wi-Fi country" }
+        requireSetting(format != InitFormat.NONE, SettingsProblem.FORMAT)
+        requireSetting(hostname.matches(Regex("[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?")), SettingsProblem.HOSTNAME)
+        requireSetting(username.matches(Regex("[a-z_][a-z0-9_-]{0,30}")) && username !in RESERVED_USERS, SettingsProblem.USERNAME)
+        requireSetting(password.length <= 256 && password.none { it == '\u0000' || it == '\n' || it == '\r' }, SettingsProblem.PASSWORD_INVALID)
+        requireSetting(password.isNotEmpty() || (ssh && !sshPasswordAuth && keys().isNotEmpty()), SettingsProblem.PASSWORD_OR_KEY)
+        if (password.isNotEmpty()) requireSetting(password.length >= 8, SettingsProblem.PASSWORD_LENGTH)
+        requireSetting(timezone in ZoneId.getAvailableZoneIds(), SettingsProblem.TIMEZONE)
+        requireSetting(keyboard.matches(Regex("[a-z]{2,3}")), SettingsProblem.KEYBOARD)
+        requireSetting(country in java.util.Locale.getISOCountries(), SettingsProblem.WIFI_COUNTRY)
         if (wifi) {
-            require(ssid.toByteArray(Charsets.UTF_8).size in 1..32 && ssid.none { it.isISOControl() || it in "\u2028\u2029" }) { "Wi-Fi name must contain 1–32 UTF-8 bytes without control characters" }
-            if (!openNetwork) require((wifiPassword.length in 8..63 && wifiPassword.all { it.code in 32..126 }) || wifiPassword.matches(Regex("[a-fA-F0-9]{64}"))) { "WPA passphrase must contain 8–63 ASCII characters or a 64-digit hexadecimal PSK" }
+            requireSetting(ssid.toByteArray(Charsets.UTF_8).size in 1..32 && ssid.none { it.isISOControl() || it in "\u2028\u2029" }, SettingsProblem.WIFI_NAME)
+            if (!openNetwork) requireSetting((wifiPassword.length in 8..63 && wifiPassword.all { it.code in 32..126 }) || wifiPassword.matches(Regex("[a-fA-F0-9]{64}")), SettingsProblem.WIFI_PASSPHRASE)
         }
         if (ssh) {
-            if (sshPasswordAuth) require(password.isNotEmpty()) { "SSH password login requires an account password" }
-            else require(keys().isNotEmpty()) { "Add at least one SSH public key" }
+            if (sshPasswordAuth) requireSetting(password.isNotEmpty(), SettingsProblem.SSH_PASSWORD_NEEDS_ACCOUNT_PASSWORD)
+            else requireSetting(keys().isNotEmpty(), SettingsProblem.SSH_KEY_REQUIRED)
             keys().forEach(::validateKey)
         }
-        require(!passwordlessSudo || password.isNotEmpty() || (ssh && keys().isNotEmpty())) { "An administrative account is required" }
+        requireSetting(!passwordlessSudo || password.isNotEmpty() || (ssh && keys().isNotEmpty()), SettingsProblem.SUDO_NEEDS_LOGIN)
         if (connect) ConnectProvisioning.validateKey(connectKey)
     }
 
@@ -64,12 +64,12 @@ data class Customization(
         private val RESERVED_USERS = setOf("root", "daemon", "bin", "sys", "sync", "games", "man", "lp", "mail", "news", "uucp", "proxy", "www-data", "backup", "list", "irc", "gnats", "nobody", "systemd-network", "systemd-timesync", "messagebus", "sshd", "_apt")
         private fun validateKey(key: String) {
             val parts = key.split(Regex("\\s+"), limit = 3)
-            require(parts.size >= 2 && parts[0] in setOf("ssh-ed25519", "ssh-rsa", "ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384", "ecdsa-sha2-nistp521", "sk-ssh-ed25519@openssh.com", "sk-ecdsa-sha2-nistp256@openssh.com")) { "Paste an OpenSSH public key, never a private key" }
-            val bytes = try { Base64.getDecoder().decode(parts[1]) } catch (_: IllegalArgumentException) { throw IllegalArgumentException("Invalid SSH public key encoding") }
-            require(bytes.size in 16..16384) { "Invalid SSH public key length" }
+            requireSetting(parts.size >= 2 && parts[0] in setOf("ssh-ed25519", "ssh-rsa", "ecdsa-sha2-nistp256", "ecdsa-sha2-nistp384", "ecdsa-sha2-nistp521", "sk-ssh-ed25519@openssh.com", "sk-ecdsa-sha2-nistp256@openssh.com"), SettingsProblem.SSH_KEY_NOT_PUBLIC)
+            val bytes = try { Base64.getDecoder().decode(parts[1]) } catch (_: IllegalArgumentException) { throw InvalidSettingsException(SettingsProblem.SSH_KEY_ENCODING) }
+            requireSetting(bytes.size in 16..16384, SettingsProblem.SSH_KEY_LENGTH)
             val size = java.nio.ByteBuffer.wrap(bytes, 0, 4).int
-            require(size == parts[0].length && size <= bytes.size - 4 && String(bytes, 4, size, Charsets.US_ASCII) == parts[0]) { "SSH public key type does not match its contents" }
-            require(key.none { it.isISOControl() || it in "\u2028\u2029" }) { "SSH keys must be single-line public keys" }
+            requireSetting(size == parts[0].length && size <= bytes.size - 4 && String(bytes, 4, size, Charsets.US_ASCII) == parts[0], SettingsProblem.SSH_KEY_TYPE_MISMATCH)
+            requireSetting(key.none { it.isISOControl() || it in "\u2028\u2029" }, SettingsProblem.SSH_KEY_MULTILINE)
         }
     }
 }
@@ -129,7 +129,7 @@ object CustomizationGenerator {
                     if (s.wifi) put("network-config", network(s))
                 }
             }
-            InitFormat.NONE -> error("Unsupported first-boot format")
+            InitFormat.NONE -> operationFailure(OperationProblem.PREPARATION_STATE)
         }
         return BootPayload(files.mapValues { it.value.toByteArray(Charsets.UTF_8) }, parameters, config)
     }

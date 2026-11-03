@@ -1,5 +1,7 @@
 package de.jtracht.piimager.presentation
 
+import de.jtracht.piimager.domain.*
+
 import android.app.Application
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
@@ -72,6 +74,9 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun error(message: String) { mutable.update { it.copy(error = message) } }
+    /** Shows [e] in the error dialog, translated where the app knows the problem. */
+    fun error(e: Throwable) = error(getApplication<Application>().describe(e))
+    private fun error(problem: OperationProblem) = error(OperationStateException(problem))
     fun clearError() { PreparationService.dismissError(); mutable.update { it.copy(error = null) } }
 
     /** Starts editing in the settings step from the confirmed settings. Editing never touches the image. */
@@ -87,7 +92,7 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun confirmSettings() {
         val current = mutable.value
-        check(current.imageChosen) { "Choose an image" }
+        checkOperation(current.imageChosen, OperationProblem.CHOOSE_IMAGE)
         val format = current.entry?.let { InitFormat.fromId(it.initFormat) } ?: current.draftFormat
         val settings = current.draft
         settings.validate(format)
@@ -129,11 +134,11 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
                 withContext(Dispatchers.IO) {
                     for (name in listOf("prepared.img", "preparing.tmp")) {
                         val file = java.io.File(getApplication<Application>().filesDir, name)
-                        check(!file.exists() || file.delete()) { "Cannot remove prepared image" }
+                        checkOperation(!file.exists() || file.delete(), OperationProblem.STORAGE_FAILED)
                     }
                 }
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { error(e.message ?: "Cannot remove image") }
+            catch (e: Exception) { error(e) }
             finally { clearingImage = false; mutable.update { it.copy(preparing = PreparationService.state.value.busy) } }
         }
     }
@@ -194,11 +199,11 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
                 loadCatalog(selected.sublist)
             }
             selected.url.isNotBlank() -> {
-                if (!CatalogSelection.supports(selected, mutable.value.model)) { error("Image does not match the selected model"); return false }
+                if (!CatalogSelection.supports(selected, mutable.value.model)) { error(OperationProblem.MODEL_MISMATCH); return false }
                 choose(entry = selected, uri = null)
                 return true
             }
-            else -> error("This catalog entry contains no supported image")
+            else -> error(OperationProblem.NO_SUPPORTED_IMAGE)
         }
         return false
     }
@@ -231,7 +236,7 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
                 val document = withContext(Dispatchers.IO) { repository.catalog(url) }
                 mutable.update { it.copy(entries = document.entries, models = if (root) document.models else it.models) }
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { error(e.message ?: "Catalog unavailable") }
+            catch (e: Exception) { error(e) }
             finally { if (generation == catalogGeneration) mutable.update { it.copy(catalogBusy = false) } }
         }
     }
@@ -240,7 +245,7 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
         PreparationService.begin(getApplication(), request)
         mutable.update { it.copy(preparing = true, prepared = null, bytes = 0, error = null) }
         true
-    } catch (e: Exception) { error(e.message ?: "Cannot start image preparation"); false }
+    } catch (e: Exception) { error(e); false }
     fun cancelPreparation() { pendingSettings = null; mutable.update { it.copy(settingsPending = false) }; PreparationService.cancel(getApplication()) }
 
     private fun format(state: ScreenState) = state.entry?.let { InitFormat.fromId(it.initFormat) } ?: state.localFormat
@@ -256,13 +261,13 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
                     val found = candidates.mapNotNull { candidate ->
                         try {
                             usb.open(candidate).use { device ->
-                                require(device.blocks in 1..0xFFFFFFFFL) { "Unsupported USB capacity" }
+                                requireOperation(device.blocks in 1..0xFFFFFFFFL, OperationProblem.USB_UNSUPPORTED)
                                 candidate.copy(capacity = Math.multiplyExact(device.blocks, device.blockSize.toLong()))
                             }
                         } catch (e: CancellationException) { throw e }
                         catch (e: Exception) { lastError = e; null }
                     }
-                    if (found.isEmpty()) throw (lastError ?: IllegalStateException("No media in USB reader"))
+                    if (found.isEmpty()) throw (lastError ?: OperationStateException(OperationProblem.USB_NO_MEDIA))
                     found
                 }
                 mutable.update { current ->
@@ -270,7 +275,7 @@ class ImagerViewModel(app: Application) : AndroidViewModel(app) {
                     current.copy(target = units.firstOrNull { it.lun == storage.lun } ?: units.first(), devices = devices)
                 }
             } catch (e: CancellationException) { throw e }
-            catch (e: Exception) { error(e.message ?: "USB initialization failed") }
+            catch (e: Exception) { error(e) }
             finally { mutable.update { it.copy(probing = false) } }
         }
     }

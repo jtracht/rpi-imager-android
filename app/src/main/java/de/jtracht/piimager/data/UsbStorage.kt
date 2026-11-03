@@ -1,5 +1,7 @@
 package de.jtracht.piimager.data
 
+import de.jtracht.piimager.domain.*
+
 import android.content.Context
 import android.hardware.usb.*
 import de.jtracht.piimager.domain.BlockTarget
@@ -22,19 +24,19 @@ class UsbStorage(context: Context) {
     }
 
     fun device(storage: Storage): UsbDevice {
-        val device = manager.deviceList[storage.id] ?: error("USB device disconnected")
-        check(device.vendorId == storage.vendor && device.productId == storage.product) { "USB device changed" }
+        val device = manager.deviceList[storage.id] ?: operationFailure(OperationProblem.USB_DISCONNECTED)
+        checkOperation(device.vendorId == storage.vendor && device.productId == storage.product, OperationProblem.USB_CHANGED)
         return device
     }
 
     private fun transport(storage: Storage): AndroidBulkTransport {
         val device = device(storage)
-        check(manager.hasPermission(device)) { "USB permission required" }
-        val iface = massInterface(device) ?: error("Unsupported USB interface")
+        checkOperation(manager.hasPermission(device), OperationProblem.USB_PERMISSION)
+        val iface = massInterface(device) ?: operationFailure(OperationProblem.USB_UNSUPPORTED)
         val endpoints = (0 until iface.endpointCount).map(iface::getEndpoint)
             .filter { it.type == UsbConstants.USB_ENDPOINT_XFER_BULK }
-        val input = endpoints.firstOrNull { it.direction == UsbConstants.USB_DIR_IN } ?: error("Missing USB input")
-        val output = endpoints.firstOrNull { it.direction == UsbConstants.USB_DIR_OUT } ?: error("Missing USB output")
+        val input = endpoints.firstOrNull { it.direction == UsbConstants.USB_DIR_IN } ?: operationFailure(OperationProblem.USB_UNSUPPORTED)
+        val output = endpoints.firstOrNull { it.direction == UsbConstants.USB_DIR_OUT } ?: operationFailure(OperationProblem.USB_UNSUPPORTED)
         return AndroidBulkTransport(manager, device, iface, output, input)
     }
 
@@ -44,13 +46,13 @@ class UsbStorage(context: Context) {
             val response = communication.controlTransfer(0xa1, 0xfe, 0, communication.usbInterface.id, max, 1)
             // Per Bulk-Only Transport, a stalled GET_MAX_LUN means LUN 0 only.
             val last = if (response == 1) max[0].toInt() and 255 else 0
-            require(last in 0..15) { "Invalid USB logical-unit count" }
+            requireOperation(last in 0..15, OperationProblem.USB_UNSUPPORTED)
             return (0..last).map { storage.copy(capacity = 0, lun = it) }
         }
     }
 
     fun open(storage: Storage): BlockTarget {
-        require(storage.lun in 0..15) { "Invalid USB logical unit" }
+        requireOperation(storage.lun in 0..15, OperationProblem.USB_UNSUPPORTED)
         val communication = transport(storage)
         try {
             // Do not parse existing partitions: blank and ext4 media must work too.

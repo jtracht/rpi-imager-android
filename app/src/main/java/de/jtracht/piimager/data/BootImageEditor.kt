@@ -1,5 +1,7 @@
 package de.jtracht.piimager.data
 
+import de.jtracht.piimager.domain.*
+
 import de.jtracht.piimager.domain.BootPayload
 import me.jahnen.libaums.core.driver.BlockDeviceDriver
 import me.jahnen.libaums.core.fs.UsbFile
@@ -18,13 +20,13 @@ object BootImageEditor {
         if (payload.files.isEmpty()) return
         RandomAccessFile(image, "rw").use { disk ->
             val region = partitions(disk).firstOrNull { candidate -> isFat32(disk, candidate) }
-                ?: error("Customization requires an MBR/GPT image with a FAT32 boot partition")
+                ?: operationFailure(OperationProblem.BOOT_NOT_SUPPORTED)
             val driver = RegionDriver(disk, region, checkpoint)
             validateRootChains(disk, region, checkpoint)
             val root = requireNotNull(Fat32FileSystem.read(driver)).rootDirectory
-            check(find(root, "config.txt") != null && find(root, "cmdline.txt") != null) { "The FAT32 partition is not a supported Raspberry Pi boot partition" }
+            checkOperation(find(root, "config.txt") != null && find(root, "cmdline.txt") != null, OperationProblem.BOOT_NOT_SUPPORTED)
             val cmdline = read(root, "cmdline.txt").toString(Charsets.UTF_8).trim()
-            require(cmdline.isNotBlank() && !cmdline.contains('\u0000')) { "Invalid kernel command line" }
+            requireOperation(cmdline.isNotBlank() && !cmdline.contains('\u0000'), OperationProblem.BOOT_DAMAGED)
             val retained = cmdline.split(Regex("\\s+")).filterNot { token ->
                 token.startsWith("systemd.run=") || token.startsWith("systemd.run_success_action=") ||
                     token == "systemd.unit=kernel-command-line.target" || token.startsWith("ds=nocloud") ||
@@ -47,7 +49,7 @@ object BootImageEditor {
             generatedNames.filter { it !in payload.files && it != "network-config" }.forEach { find(root, it)?.delete() }
             expected.forEach { (name, bytes) ->
                 checkpoint()
-                require(bytes.size <= 1024 * 1024 && '/' !in name && '\\' !in name) { "Invalid boot payload" }
+                requireOperation(bytes.size <= 1024 * 1024 && '/' !in name && '\\' !in name, OperationProblem.PREPARATION_STATE)
                 val file = find(root, name) ?: root.createFile(name)
                 file.use {
                     it.length = bytes.size.toLong()
@@ -59,7 +61,7 @@ object BootImageEditor {
             // A fresh filesystem instance reads back data and directory entries from disk.
             val checked = requireNotNull(Fat32FileSystem.read(driver)).rootDirectory
             expected.forEach { (name, bytes) ->
-                check(read(checked, name).contentEquals(bytes)) { "Boot customization verification failed: $name" }
+                checkOperation(read(checked, name).contentEquals(bytes), OperationProblem.BOOT_VERIFY_FAILED)
             }
         }
     }
@@ -67,20 +69,20 @@ object BootImageEditor {
     private fun find(root: UsbFile, name: String): UsbFile? = root.listFiles().firstOrNull { it.name.equals(name, ignoreCase = true) }
 
     private fun read(root: UsbFile, name: String): ByteArray {
-        val file = find(root, name) ?: error("Missing boot file: $name")
-        require(!file.isDirectory && file.length in 0..1024 * 1024) { "Boot file is too large: $name" }
+        val file = find(root, name) ?: operationFailure(OperationProblem.BOOT_FILE_MISSING, name)
+        requireOperation(!file.isDirectory && file.length in 0..1024 * 1024, OperationProblem.BOOT_DAMAGED)
         return ByteArray(file.length.toInt()).also { if (it.isNotEmpty()) file.read(0, ByteBuffer.wrap(it)) }
     }
 
     private fun bytes(disk: RandomAccessFile, offset: Long, size: Int): ByteArray {
-        require(offset >= 0 && size >= 0 && offset <= disk.length() - size) { "Partition extends beyond the image" }
+        requireOperation(offset >= 0 && size >= 0 && offset <= disk.length() - size, OperationProblem.BOOT_DAMAGED)
         return ByteArray(size).also { disk.seek(offset); disk.readFully(it) }
     }
     private fun uint(buffer: ByteBuffer, offset: Int) = buffer.getInt(offset).toLong() and 0xffffffffL
 
     private fun partitions(disk: RandomAccessFile): List<Region> {
         val mbr = bytes(disk, 0, 512)
-        require(mbr[510] == 0x55.toByte() && mbr[511] == 0xaa.toByte()) { "Invalid image partition signature" }
+        requireOperation(mbr[510] == 0x55.toByte() && mbr[511] == 0xaa.toByte(), OperationProblem.BOOT_NOT_SUPPORTED)
         val buffer = ByteBuffer.wrap(mbr).order(ByteOrder.LITTLE_ENDIAN)
         val result = mutableListOf<Region>()
         var gpt = false
@@ -91,32 +93,32 @@ object BootImageEditor {
             if (type in setOf(0x0b, 0x0c)) {
                 val start = uint(buffer, offset + 8) * 512
                 val length = uint(buffer, offset + 12) * 512
-                require(start >= 512 && length > 0 && start <= disk.length() - length) { "Invalid FAT partition bounds" }
+                requireOperation(start >= 512 && length > 0 && start <= disk.length() - length, OperationProblem.BOOT_DAMAGED)
                 result += Region(start, length)
             }
         }
         if (gpt) {
             val header = bytes(disk, 512, 512)
             val h = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN)
-            require(String(header, 0, 8, Charsets.US_ASCII) == "EFI PART") { "Invalid GPT header" }
+            requireOperation(String(header, 0, 8, Charsets.US_ASCII) == "EFI PART", OperationProblem.BOOT_DAMAGED)
             val size = h.getInt(12)
-            require(size in 92..512) { "Invalid GPT header length" }
+            requireOperation(size in 92..512, OperationProblem.BOOT_DAMAGED)
             val expectedHeaderCrc = uint(h, 16)
             h.putInt(16, 0)
-            require(CRC32().apply { update(header, 0, size) }.value == expectedHeaderCrc) { "GPT header checksum mismatch" }
+            requireOperation(CRC32().apply { update(header, 0, size) }.value == expectedHeaderCrc, OperationProblem.BOOT_DAMAGED)
             val entriesLba = h.getLong(72)
             val count = h.getInt(80)
             val entrySize = h.getInt(84)
-            require(entriesLba in 2..(disk.length() / 512) && count in 1..4096 && entrySize in 128..1024 && count.toLong() * entrySize <= 1024 * 1024) { "Unsupported GPT table" }
+            requireOperation(entriesLba in 2..(disk.length() / 512) && count in 1..4096 && entrySize in 128..1024 && count.toLong() * entrySize <= 1024 * 1024, OperationProblem.BOOT_DAMAGED)
             val table = bytes(disk, entriesLba * 512, count * entrySize)
-            require(CRC32().apply { update(table) }.value == uint(h, 88)) { "GPT partition table checksum mismatch" }
+            requireOperation(CRC32().apply { update(table) }.value == uint(h, 88), OperationProblem.BOOT_DAMAGED)
             val tableBuffer = ByteBuffer.wrap(table).order(ByteOrder.LITTLE_ENDIAN)
             for (index in 0 until count) {
                 val offset = index * entrySize
                 if ((0..15).all { table[offset + it] == 0.toByte() }) continue
                 val first = tableBuffer.getLong(offset + 32)
                 val last = tableBuffer.getLong(offset + 40)
-                require(first >= 2 && last >= first && last < disk.length() / 512) { "Invalid GPT partition bounds" }
+                requireOperation(first >= 2 && last >= first && last < disk.length() / 512, OperationProblem.BOOT_DAMAGED)
                 result += Region(first * 512, (last - first + 1) * 512)
             }
         }
@@ -163,7 +165,7 @@ object BootImageEditor {
             var current = start
             while (current < 0x0ffffff8L) {
                 checkpoint()
-                require(current in 2..maxCluster && seen.size < limit && seen.add(current)) { "Invalid or cyclic boot filesystem cluster chain" }
+                requireOperation(current in 2..maxCluster && seen.size < limit && seen.add(current), OperationProblem.BOOT_DAMAGED)
                 current = uint(ByteBuffer.wrap(bytes(disk, fatStart + current * 4, 4)).order(ByteOrder.LITTLE_ENDIAN), 0) and 0x0fffffff
             }
             return seen.toList()
@@ -178,10 +180,10 @@ object BootImageEditor {
                 if (marker == 0xe5 || attributes and 0x18 != 0 || attributes == 0x0f) continue
                 val length = uint(directory, offset + 28)
                 if (length == 0L) continue
-                require(length <= region.length) { "Boot file exceeds partition" }
+                requireOperation(length <= region.length, OperationProblem.BOOT_DAMAGED)
                 val start = ((directory.getShort(offset + 20).toInt() and 65535).toLong() shl 16) or (directory.getShort(offset + 26).toInt() and 65535).toLong()
                 val minimum = (length + clusterSize - 1) / clusterSize
-                require(chain(start, minimum + 64).size >= minimum) { "Truncated boot file cluster chain" }
+                requireOperation(chain(start, minimum + 64).size >= minimum, OperationProblem.BOOT_DAMAGED)
             }
         }
     }
@@ -221,7 +223,7 @@ object BootImageEditor {
         override fun init() = Unit
         private fun seek(offset: Long, count: Int) {
             checkpoint()
-            require(offset >= 0 && count >= 0 && offset <= region.length - count) { "FAT operation exceeds boot partition" }
+            requireOperation(offset >= 0 && count >= 0 && offset <= region.length - count, OperationProblem.BOOT_DAMAGED)
             disk.seek(region.start + offset)
         }
         override fun read(deviceOffset: Long, buffer: ByteBuffer) {

@@ -59,7 +59,7 @@ class MainActivity : ComponentActivity() {
                             startForegroundService(Intent(this, ImagingService::class.java)
                                 .putExtra("id", target.id).putExtra("vendor", target.vendor).putExtra("product", target.product)
                                 .putExtra("capacity", target.capacity).putExtra("sha256", hash).putExtra("lun", target.lun))
-                        } catch (e: Exception) { model.error(e.message ?: "Cannot start imaging service") }
+                        } catch (e: Exception) { model.error(e) }
                     },
                     cancelWrite = { startService(Intent(this, ImagingService::class.java).setAction(ImagingService.CANCEL)) }
                 )
@@ -76,7 +76,7 @@ class MainActivity : ComponentActivity() {
                 val permission = PendingIntent.getBroadcast(this, device.deviceId, intent, PendingIntent.FLAG_MUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
                 model.usb.manager.requestPermission(device, permission)
             }
-        } catch (e: Exception) { model.error(e.message ?: "USB unavailable") }
+        } catch (e: Exception) { model.error(e) }
     }
 
     override fun onDestroy() { unregisterReceiver(receiver); super.onDestroy() }

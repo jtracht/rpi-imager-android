@@ -90,7 +90,8 @@ fun ImagerScreen(model: ImagerViewModel, requestNotifications: () -> Unit, pickI
     }) }
     // Set when the settings were confirmed while the image was still loading or being customized.
     var advanceWhenReady by rememberSaveable { mutableStateOf(false) }
-    var settingsError by remember { mutableStateOf<String?>(null) }
+    var settingsError by remember { mutableStateOf<IllegalArgumentException?>(null) }
+    val settingsErrorText = settingsErrorText(settingsError)
     // A running write always shows its progress. Otherwise never stay on a step whose prerequisite
     // disappeared, e.g. after clearing the image or a USB refresh.
     LaunchedEffect(furthest, write.busy) {
@@ -127,12 +128,12 @@ fun ImagerScreen(model: ImagerViewModel, requestNotifications: () -> Unit, pickI
             model.confirmSettings()
             settingsError = null
             advanceWhenReady = true
-        } catch (e: IllegalArgumentException) { settingsError = e.message }
+        } catch (e: IllegalArgumentException) { settingsError = e }
     }
     val nextAction = when (step) {
         // A rejected confirmation is repeated next to the button, as the form field may be scrolled out of view.
         WizardStep.Settings -> NextAction(enabled = state.imageChosen && !advanceWhenReady,
-            hint = settingsError ?: if (advanceWhenReady) stringResource(R.string.settings_waiting) else null,
+            hint = settingsErrorText ?: if (advanceWhenReady) stringResource(R.string.settings_waiting) else null,
             isError = settingsError != null, onNext = confirmSettings)
         WizardStep.Image -> NextAction(enabled = furthest > step, hint = if (furthest > step) null else stringResource(R.string.next_needs_os)) { navigate(WizardStep.Settings) }
         WizardStep.Storage -> NextAction(enabled = furthest > step, hint = if (furthest > step) null else stringResource(R.string.next_needs_target)) { navigate(WizardStep.Write) }
@@ -165,7 +166,7 @@ fun ImagerScreen(model: ImagerViewModel, requestNotifications: () -> Unit, pickI
                         }
                         WizardStep.Settings -> {
                             LaunchedEffect(Unit) { model.beginSettings(); settingsError = null }
-                            SettingsStep(model, state, settingsError)
+                            SettingsStep(model, state, settingsErrorText)
                         }
                         WizardStep.Storage -> StorageStep(state, locked, model::refresh, selectTarget)
                         WizardStep.Write -> WriteStep(state, write, enabled = !locked && state.prepared != null && state.target != null, { confirm = true }, cancelWrite)

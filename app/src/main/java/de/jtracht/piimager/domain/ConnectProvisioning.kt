@@ -5,9 +5,7 @@ object ConnectProvisioning {
     const val SETTINGS_URL = "https://connect.raspberrypi.com/settings"
 
     fun validateKey(key: String) {
-        require(key.matches(Regex("rp[uo]ak_[1-9A-HJ-NP-Za-km-z]{24}"))) {
-            "Paste a personal or organisation Connect auth key (rpuak_ / rpoak_ followed by 24 Base58 characters)"
-        }
+        requireSetting(key.matches(Regex("rp[uo]ak_[1-9A-HJ-NP-Za-km-z]{24}")), SettingsProblem.CONNECT_KEY)
     }
 
     fun script(settings: Customization): String {
